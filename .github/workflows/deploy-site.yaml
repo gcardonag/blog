@@ -1,0 +1,16 @@
+name: Deploy Site
+on: [push]
+
+jobs:
+  build:
+    name: Build Gatsby Docker Image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build
+        env:
+          DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
+        run: |
+          docker login -u gcardona -p ${DOCKER_TOKEN}
+          docker pull gcardona/blog-gatsby
+          docker build -t gcardona/blog-gatsby .
+          docker push gcardona/blog-gatsby
