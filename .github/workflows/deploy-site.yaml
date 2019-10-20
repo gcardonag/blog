@@ -7,10 +7,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Build
+        uses: actions/checkout@v1
         env:
           DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
         run: |
           docker login -u gcardona -p ${DOCKER_TOKEN}
           docker pull gcardona/blog-gatsby
-          docker build -t gcardona/blog-gatsby .
+          docker build --file Dockerfile -t gcardona/blog-gatsby .
           docker push gcardona/blog-gatsby
