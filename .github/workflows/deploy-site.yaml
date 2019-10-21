@@ -18,6 +18,7 @@ jobs:
   deploy_content:
     name: Deploy Content
     needs: build
+    runs-on: ubuntu-latest
     container:
       image: gcardona/blog-gatsby
       volumes:
