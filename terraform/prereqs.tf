@@ -1,6 +1,6 @@
 resource "aws_acm_certificate" "cert" {
     domain_name = "blog.gcardona.me"
-    subject_alternative_names = "www.blog.gcardona.me"
+    subject_alternative_names = ["www.blog.gcardona.me"]
     validation_method = "DNS"
 
     lifecycle {
