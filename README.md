@@ -17,7 +17,7 @@ gatsby develop -H 0.0.0.0
         - S3 Read/Write (state)
     - Run `docker-compose run terraform init` to validate terraform initializes properly
     - Run `docker-compose run terraform plan` to validate TF can plan properly
-- Set up initial Docker image
+- Set up initial Docker image locally (so that you can pull/push for future updates without pull errors)
     - docker login
     - docker build -t tag/name .
     - docker push tag/name
@@ -31,7 +31,6 @@ Prereqs:
   - Cache Invalidate
 
 Build Docker Containers
-- Terraform
 - Gatsby
 
 Gatsby Deploy
@@ -46,4 +45,4 @@ Terraform Deploy
 Track pricing? (AWS tagging)
 Container Scanning
 Optimizations
-- Container Sizes
+    - https://cloud.google.com/solutions/best-practices-for-building-containers
