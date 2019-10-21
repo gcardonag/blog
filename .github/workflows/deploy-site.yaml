@@ -19,10 +19,7 @@ jobs:
     name: Deploy Content
     needs: build
     runs-on: ubuntu-latest
-    container:
-      image: gcardona/blog-gatsby
-      volumes:
-        -  ${GITHUB_WORKSPACE}/my-blog/:/usr/src/app
+    container: gcardona/blog-gatsby
     steps:
       - uses: actions/checkout@v1
       - name: Deploy
@@ -30,6 +27,6 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID_GATSBY }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_GATSBY }}
         run: |
+          cd my-blog/
           yarn build
           yarn deploy -y
-        
