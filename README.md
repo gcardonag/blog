@@ -44,5 +44,6 @@ Terraform Deploy
 ## Future Ideas
 Track pricing? (AWS tagging)
 Container Scanning
+Lightouse Tests
 Optimizations
     - https://cloud.google.com/solutions/best-practices-for-building-containers
