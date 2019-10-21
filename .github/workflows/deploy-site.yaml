@@ -28,5 +28,6 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_GATSBY }}
         run: |
           cd my-blog/
+          yarn install
           yarn build
           yarn deploy -y
