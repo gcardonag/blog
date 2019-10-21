@@ -20,14 +20,14 @@ jobs:
     needs: build
     container:
       image: gcardona/blog-gatsby
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID_GATSBY }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_GATSBY }}
       volumes:
         -  ${GITHUB_WORKSPACE}/my-blog/:/usr/src/app
     steps:
       - uses: actions/checkout@v1
       - name: Deploy
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID_GATSBY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_GATSBY }}
         run: |
           yarn build
           yarn deploy -y
