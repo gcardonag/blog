@@ -1,6 +1,11 @@
 resource "aws_acm_certificate" "cert" {
     domain_name = "blog.gcardona.me"
+    subject_alternative_names = "www.blog.gcardona.me"
     validation_method = "DNS"
+
+    lifecycle {
+        create_before_destroy = true
+    }
 }
 
 data "aws_route53_zone" "zone" {
