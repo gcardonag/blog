@@ -25,7 +25,10 @@ jobs:
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_GATSBY }}
       volumes:
         -  ${GITHUB_WORKSPACE}/my-blog/:/usr/src/app
-    run: |
-      yarn build
-      yarn deploy -y
+    steps:
+      - uses: actions/checkout@v1
+      - name: Deploy
+        run: |
+          yarn build
+          yarn deploy -y
         
