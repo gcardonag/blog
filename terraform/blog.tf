@@ -8,13 +8,33 @@ resource "aws_s3_bucket_public_access_block" "content" {
     provider = "aws" # https://github.com/terraform-providers/terraform-provider-aws/issues/8560
 }
 
+resource "aws_s3_bucket_policy" "content" {
+    bucket = "${data.aws_s3_bucket.content.id}"
+
+    policy = <<POLICY
+{
+  "Version":"2012-10-17",
+  "Statement":[{
+      "Sid":"PublicReadGetObject",
+      "Effect":"Allow",
+	  "Principal": "*",
+      "Action":["s3:GetObject"],
+      "Resource":["arn:aws:s3:::${aws_s3_bucket_public_access_block.content.bucket}/*"
+      ]
+    }
+  ]
+}
+POLICY
+}
+
+
 locals {
   s3_origin_id = "blogS3Origin"
 }
 
 resource "aws_cloudfront_distribution" "cdn" {
     origin {
-        domain_name = "${data.aws_s3_bucket.content.bucket_regional_domain_name}"
+        domain_name = "${data.aws_s3_bucket.content.website_endpoint}"
         origin_id = "${local.s3_origin_id}"
     }
 
