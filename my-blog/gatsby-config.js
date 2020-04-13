@@ -28,7 +28,20 @@ module.exports = {
         path: `${__dirname}/content/posts`,
       },
     },
-    `gatsby-transformer-remark`,
+    {
+      resolve: `gatsby-transformer-remark`,
+      options: {
+        plugins: [
+          {
+            resolve: 'gatsby-remark-graph',
+            options: {
+              language: 'mermaid',
+              theme: 'default'
+            }
+          }
+        ]
+      }
+    },
     `gatsby-plugin-emotion`,
     {
       resolve: `gatsby-plugin-typography`,

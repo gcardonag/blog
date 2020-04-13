@@ -1,0 +1,22 @@
+---
+version: "3.7"
+services:
+  dev:
+    build: .
+    working_dir: /usr/src/app
+    command: /bin/sh
+    volumes:
+      - ./:/usr/src/app
+    ports:
+      - "8000:8000"
+      - "9000:9000"
+    stdin_open: true
+    tty: true
+  terraform:
+    image: hashicorp/terraform:light
+    volumes:
+      - ./terraform:/root
+    working_dir: /root
+    environment:
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
