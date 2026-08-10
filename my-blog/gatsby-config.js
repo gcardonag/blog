@@ -12,7 +12,7 @@ module.exports = {
   },
   plugins: [
     {
-      resolve: `gatsby-plugin-s3`,
+      resolve: `@pixelfusion-nz/gatsby-plugin-s3`,
       options: {
         bucketName: "blog.gcardona.me",
         protocol: siteAddress.protocol.slice(0, -1),

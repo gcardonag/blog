@@ -4,10 +4,30 @@ Built using https://www.gatsbyjs.org/tutorial/using-a-theme/
 
 Dev Environment:
 ```
-docker-compose run --service-ports dev
+docker compose run --service-ports dev
 cd my-blog/
 gatsby develop -H 0.0.0.0
 ```
+
+## Tests
+```
+cd my-blog/
+yarn test        # builds the site, then verifies the generated output
+yarn test:only   # re-runs the checks against an existing public/ build
+```
+
+The suite in `my-blog/test/` asserts against the built site in `public/`, so it
+covers the whole pipeline: markdown sourcing, the remark transform, mermaid
+diagrams, Emotion's CSS extraction, typography, React SSR, and the S3 deploy
+configuration. It is written with the built-in `node:test` runner and pulls in
+no dependencies of its own. CI runs it on every push and pull request, and the
+deploy job ships the same build the tests verified.
+
+## Dependency Security
+Transitive dependencies whose parents pin them below a published security fix
+are forced up via `resolutions` in `my-blog/package.json`; see the
+`comment:resolutions` field there for the exceptions and why they stand.
+Re-check with `cd my-blog/ && yarn audit`.
 
 ## Initial Build Steps
 - How was blog initialized?
