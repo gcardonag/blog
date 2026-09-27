@@ -1,20 +1,10 @@
 import React from "react"
 import { css } from "@emotion/react"
-import { useStaticQuery, Link, graphql } from "gatsby"
 
+import { title } from "../../site.config"
 import { rhythm } from "../utils/typography"
+
 export default ({ children }) => {
-  const data = useStaticQuery(
-    graphql`
-      query {
-        site {
-          siteMetadata {
-            title
-          }
-        }
-      }
-    `
-  )
   return (
     <div
       css={css`
@@ -24,7 +14,7 @@ export default ({ children }) => {
         padding-top: ${rhythm(1.5)};
       `}
     >
-      <Link to={`/`}>
+      <a href={`/`}>
         <h3
           css={css`
             margin-bottom: ${rhythm(2)};
@@ -32,17 +22,17 @@ export default ({ children }) => {
             font-style: normal;
           `}
         >
-          {data.site.siteMetadata.title}
+          {title}
         </h3>
-      </Link>
-      <Link
-        to={`/about/`}
+      </a>
+      <a
+        href={`/about/`}
         css={css`
           float: right;
         `}
       >
         About
-      </Link>
+      </a>
       {children}
     </div>
   )

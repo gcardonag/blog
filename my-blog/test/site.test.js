@@ -1,18 +1,20 @@
 /**
  * End-to-end checks over the generated site.
  *
- * These run against `public/` after `gatsby build`, so they exercise the whole
- * pipeline the dependency tree is responsible for: sourcing markdown, the
- * remark transform, the mermaid plugin, Emotion's CSS-in-JS extraction,
- * typography, and React SSR. They are intentionally written against the build
- * *output* rather than against components in isolation, because the failures
- * worth catching here are the ones a dependency upgrade causes downstream —
- * a plugin silently no-opping, or SSR emitting an empty shell.
+ * `yarn test` builds the site against a local stand-in for the Craft API
+ * (test/fake-craft.js, serving test/fixtures/craft) and then runs these
+ * against `public/`. That exercises the whole pipeline: fetching documents
+ * and blocks over HTTP, turning Craft blocks into HTML, mermaid diagrams,
+ * Emotion's CSS extraction, typography, and React's server rendering. They
+ * are written against the build *output* rather than against components in
+ * isolation, because the failures worth catching are the ones that show up
+ * on the page.
  *
  * Uses node:test so the suite adds no dependencies of its own.
  */
 const test = require("node:test")
 const assert = require("node:assert/strict")
+const { spawn, spawnSync } = require("child_process")
 const fs = require("fs")
 const path = require("path")
 
@@ -20,24 +22,30 @@ const {
   SITE_ROOT,
   PUBLIC_DIR,
   allPosts,
+  escapeRe,
   prosePhrase,
   readPage,
   text,
   visibleText,
 } = require("./helpers")
+const fakeCraft = require("./fake-craft")
 
-const SITE_TITLE = require(path.join(SITE_ROOT, "gatsby-config")).siteMetadata.title
+const config = require(path.join(SITE_ROOT, "site.config"))
+const SITE_TITLE = config.title
 const posts = allPosts()
+const reference = posts.find(p => p.slug === "/formatting-reference/")
+const referencePage = () => readPage(reference.slug)
 
 test("the build produced a public directory", () => {
   assert.ok(
     fs.existsSync(PUBLIC_DIR),
-    `${PUBLIC_DIR} is missing — run \`yarn build\` before the tests`
+    `${PUBLIC_DIR} is missing — run \`yarn test\`, which builds against the fixtures first`
   )
 })
 
 test("there is content to test against", () => {
-  assert.ok(posts.length > 0, "no markdown posts found in content/posts")
+  assert.ok(posts.length > 0, "no fixture documents found in test/fixtures/craft")
+  assert.ok(reference, "the formatting reference fixture is missing")
 })
 
 test.describe("page generation", () => {
@@ -49,16 +57,27 @@ test.describe("page generation", () => {
     assert.ok(fs.existsSync(path.join(PUBLIC_DIR, "about", "index.html")))
   })
 
-  test("generates one page per markdown post, at its slug", () => {
+  test("generates one page per Craft document, at its slug", () => {
     for (const post of posts) {
       const page = path.join(PUBLIC_DIR, post.slug, "index.html")
       assert.ok(fs.existsSync(page), `expected a page for ${post.file} at ${post.slug}`)
     }
   })
 
-  test("does not generate a Gatsby dev-only 404 page into production output", () => {
-    // Gatsby emits 404.html in production; the dev-only page must not leak.
-    assert.ok(!fs.existsSync(path.join(PUBLIC_DIR, "dev-404-page", "index.html")))
+  test("keeps the date-based URLs the Gatsby site used", () => {
+    for (const slug of ["2019-10-06", "2019-10-08", "2019-10-19", "2019-10-20", "2020-04-04"]) {
+      assert.ok(fs.existsSync(path.join(PUBLIC_DIR, slug, "index.html")), `/${slug}/ is missing`)
+    }
+  })
+
+  test("copies static files", () => {
+    assert.ok(fs.existsSync(path.join(PUBLIC_DIR, "favicon.ico")))
+  })
+
+  test("leaves no Gatsby artifacts in the output", () => {
+    for (const leftover of ["page-data", "_gatsby", "~partytown", "webpack.stats.json"]) {
+      assert.ok(!fs.existsSync(path.join(PUBLIC_DIR, leftover)), `${leftover} found in public/`)
+    }
   })
 })
 
@@ -88,6 +107,19 @@ test.describe("index page", () => {
     }
   })
 
+  test("takes the date from a document titled with one", () => {
+    const post = posts.find(p => p.dateSource === "title")
+    assert.ok(post, "no fixture is titled with its date")
+    assert.ok(visibleText(html()).includes(post.displayDate))
+    assert.ok(fs.existsSync(path.join(PUBLIC_DIR, post.slug, "index.html")))
+  })
+
+  test("falls back to the document's creation date when there is no date", () => {
+    const post = posts.find(p => p.dateSource === "created")
+    assert.ok(post, "no fixture exercises the creation-date fallback")
+    assert.ok(visibleText(html()).includes(post.displayDate))
+  })
+
   test("orders posts newest first", () => {
     const page = text(html())
     const positions = [...posts]
@@ -112,6 +144,17 @@ test.describe("index page", () => {
     }
   })
 
+  test("truncates long excerpts where Gatsby did", () => {
+    // Taken from the live Gatsby site. The source block is hard-wrapped, so
+    // this also checks that line breaks become spaces rather than vanishing.
+    assert.ok(
+      visibleText(html()).includes(
+        "you may face some conflicts with libraries in the com.amazonaws…"
+      ),
+      "Athena excerpt differs from the live site"
+    )
+  })
+
   test("renders the page heading", () => {
     assert.match(visibleText(html()), /Assorted Findings and Musings/)
   })
@@ -133,6 +176,16 @@ test.describe("post pages", () => {
       const phrase = prosePhrase(post.body, 8)
       assert.ok(page.includes(phrase), `post body missing (expected "${phrase}")`)
     })
+
+    test(`${post.file} does not render its metadata`, () => {
+      const raw = readPage(post.slug)
+      const page = visibleText(raw)
+      for (const line of post.metaLines) {
+        assert.ok(!page.includes(line), `metadata line "${line}" leaked into the page`)
+      }
+      // The divider under an imported metadata block goes with it.
+      assert.doesNotMatch(raw, /<br\/><br\/><div><hr\/>/, "body starts with the metadata divider")
+    })
   }
 })
 
@@ -145,7 +198,7 @@ test.describe("about page", () => {
 test.describe("shared layout", () => {
   const pages = () => ["", "about", ...posts.map(p => p.slug)]
 
-  test("every page shows the site title from gatsby-config", () => {
+  test("every page shows the site title from site.config", () => {
     for (const p of pages()) {
       assert.ok(
         visibleText(readPage(p)).includes(SITE_TITLE),
@@ -161,66 +214,135 @@ test.describe("shared layout", () => {
       assert.match(page, /href="\/about\/"/, `about link missing on /${p}`)
     }
   })
-})
 
-test.describe("markdown transform (gatsby-transformer-remark)", () => {
-  test("converts markdown to HTML rather than emitting raw source", () => {
-    const page = readPage(posts[0].slug)
-    assert.match(page, /<p>/, "no paragraphs rendered — markdown was not transformed")
-  })
-
-  test("converts markdown links into anchors", () => {
-    const withLink = posts.find(p => /\[[^\]]+\]\(https?:\/\//.test(p.body) || /^https?:\/\//m.test(p.body))
-    if (!withLink) return // no post currently exercises links
-    assert.match(readPage(withLink.slug), /<a href="https?:\/\//, "markdown links were not converted")
-  })
-
-  test("converts markdown lists into list elements", () => {
-    const withList = posts.find(p => /^\s*[-*]\s+/m.test(p.body))
-    if (!withList) return
-    assert.match(readPage(withList.slug), /<(ul|ol)>/, "markdown lists were not converted")
+  test("every page has a document title", () => {
+    for (const p of pages()) {
+      assert.match(readPage(p), /<title>[^<]+<\/title>/, `<title> missing on /${p}`)
+    }
   })
 })
 
-test.describe("mermaid diagrams (gatsby-remark-graph)", () => {
-  const withGraph = posts.filter(p => /```mermaid/.test(p.body))
+test.describe("Craft block rendering", () => {
+  test("renders text blocks as paragraphs", () => {
+    assert.match(readPage(posts[0].slug), /<p>/, "no paragraphs rendered")
+  })
 
-  test("at least one post exercises the mermaid plugin", () => {
-    assert.ok(withGraph.length > 0, "no post contains a ```mermaid fence")
+  test("skips empty spacer blocks", () => {
+    for (const post of posts) {
+      assert.doesNotMatch(readPage(post.slug), /<p><\/p>/, `empty paragraph on ${post.slug}`)
+    }
+  })
+
+  test("turns bare URLs into links", () => {
+    const withUrl = posts.find(p => /(^|\s)https?:\/\//m.test(p.body))
+    assert.ok(withUrl, "no fixture has a bare URL")
+    assert.match(readPage(withUrl.slug), /<a href="https?:\/\//, "bare URLs were not linked")
+  })
+
+  test("renders headings from textStyle", () => {
+    const page = referencePage()
+    assert.match(page, /<h2>Inline formatting<\/h2>/)
+    assert.match(page, /<h3>Lists<\/h3>/)
+  })
+
+  test("renders inline formatting", () => {
+    const page = referencePage()
+    assert.match(page, /<strong>bold<\/strong>/)
+    assert.match(page, /<em>italic<\/em>/)
+    assert.match(page, /<code>inline code<\/code>/)
+    assert.match(page, /<a href="https:\/\/www\.craft\.do\/">link<\/a>/)
+    assert.match(page, /<mark>a highlight<\/mark>/)
+  })
+
+  test("groups list items into lists, split by style, with nesting", () => {
+    const page = referencePage()
+    assert.match(page, /<ul><li><span>First bullet<\/span><ul><li><span>Nested bullet<\/span><\/li><\/ul><\/li><li><span>Second bullet<\/span><\/li><\/ul>/)
+    assert.match(page, /<ol><li><span>First step<\/span><\/li><li><span>Second step<\/span><\/li><\/ol>/)
+  })
+
+  test("renders tasks as checkboxes reflecting their state", () => {
+    const page = referencePage()
+    assert.match(page, /<input type="checkbox" disabled="" checked=""\/> <span>Finished task/)
+    assert.match(page, /<input type="checkbox" disabled=""\/> <span>Open task/)
+  })
+
+  test("renders callouts as blockquotes and captions as small text", () => {
+    const page = referencePage()
+    assert.match(page, /<blockquote><p>A callout becomes a blockquote\.<\/p><\/blockquote>/)
+    assert.match(page, /<p><small>A caption line\.<\/small><\/p>/)
+    assert.doesNotMatch(page, /&lt;(callout|caption)/, "Craft tags leaked into the output")
+  })
+
+  test("renders code, images, separators, links and cards", () => {
+    const page = referencePage()
+    assert.match(page, /<pre><code class="language-javascript">const answer = 6 \* 7<\/code><\/pre>/)
+    assert.match(page, /<img src="https:\/\/example\.com\/diagram\.png" alt="A diagram"\/>/)
+    assert.match(page, /<hr\/>/)
+    assert.match(page, /<p><a href="https:\/\/www\.craft\.do\/">Craft<\/a><\/p>/)
+    assert.match(page, /<section><h2>A nested card<\/h2><p>Content inside a card\.<\/p><\/section>/)
+  })
+})
+
+test.describe("mermaid diagrams", () => {
+  const isDiagram = b => b.type === "code" && /^(sequenceDiagram|graph|flowchart)\b/.test(b.rawCode)
+  const withGraph = posts.filter(p => p.blocks.some(isDiagram))
+
+  test("at least one post has a diagram", () => {
+    assert.ok(withGraph.length > 0, "no fixture has a mermaid code block")
   })
 
   for (const post of withGraph) {
-    test(`${post.file} renders its fence as a mermaid container`, () => {
+    test(`${post.file} renders its code block as a mermaid container`, () => {
       const page = readPage(post.slug)
       assert.match(page, /<div class="mermaid">/, "mermaid container missing")
-      assert.doesNotMatch(page, /```mermaid/, "raw mermaid fence leaked into the output")
+      assert.doesNotMatch(page, /<pre><code[^>]*>sequenceDiagram/, "diagram rendered as plain code")
 
-      // The diagram source should survive into the container.
-      const source = post.body.match(/```mermaid\r?\n([\s\S]*?)```/)[1].trim()
+      const source = post.blocks.find(isDiagram).rawCode
       const firstLine = source.split(/\r?\n/)[0].trim()
       assert.ok(
         text(page).includes(firstLine),
         `diagram source "${firstLine}" missing from the container`
       )
+      assert.match(page, /<script src="https:\/\/unpkg\.com\/mermaid@8\.13\.4\/dist\/mermaid\.min\.js">/)
     })
   }
+
+  test("pages without diagrams load no scripts", () => {
+    for (const p of ["", "about", ...posts.filter(p => !withGraph.includes(p)).map(p => p.slug)]) {
+      assert.doesNotMatch(readPage(p), /<script/, `unexpected script on /${p}`)
+    }
+  })
 })
 
 test.describe("styling pipeline (Emotion + typography)", () => {
-  test("extracts Emotion styles into the server-rendered HTML", () => {
+  test("extracts Emotion styles into the head", () => {
     const page = readPage()
-    assert.match(page, /data-emotion="css/, "no Emotion style tags — CSS-in-JS did not run at build time")
+    const head = page.slice(0, page.indexOf("</head>"))
+    assert.match(head, /<style data-emotion="css [^"]+">/, "no Emotion style tag in the head")
+  })
+
+  test("does not inline Emotion style tags into the body", () => {
+    const page = readPage()
+    assert.doesNotMatch(page.slice(page.indexOf("<body")), /<style/, "style tags rendered inline")
   })
 
   test("compiles the layout's css prop to real declarations", () => {
-    // layout.js sets max-width via the css prop; if the Emotion Babel preset
-    // stops running, the class name survives but the rule does not.
     assert.match(readPage(), /max-width:\s*700px/, "layout max-width rule missing")
   })
 
   test("applies typography rhythm values", () => {
-    // rhythm() emits rem-based spacing; a broken typography plugin drops these.
+    // rhythm() emits rem-based spacing; a broken typography setup drops these.
     assert.match(readPage(), /margin-bottom:\s*[\d.]+rem/, "typography rhythm spacing missing")
+  })
+
+  test("includes the Kirkham theme's global styles and fonts", () => {
+    const page = readPage()
+    assert.match(page, /<style id="typography\.js">[^<]*'Playfair Display'/, "typography styles missing")
+    assert.match(
+      page,
+      /<link href="\/\/fonts\.googleapis\.com\/css\?family=Playfair\+Display:700\|Fira\+Sans:[^"]+"/,
+      "Google Fonts link missing"
+    )
   })
 
   test("styles the post metadata via the css prop", () => {
@@ -229,61 +351,72 @@ test.describe("styling pipeline (Emotion + typography)", () => {
 })
 
 test.describe("server-side rendering", () => {
-  test("renders content into the Gatsby root rather than an empty shell", () => {
+  test("renders content into the page rather than an empty shell", () => {
     for (const p of ["", "about", posts[0].slug]) {
       const page = readPage(p)
-      const start = page.indexOf('<div id="___gatsby">')
-      assert.notEqual(start, -1, `could not find the Gatsby root element on /${p}`)
-
-      // Everything from the root up to the first script tag is server-rendered
-      // markup; an unhydrated shell would leave this essentially empty.
-      const rendered = page.slice(start, page.indexOf("<script", start))
+      const start = page.indexOf('<div id="root">')
+      assert.notEqual(start, -1, `could not find the root element on /${p}`)
       assert.ok(
-        visibleText(rendered).length > 100,
-        `/${p} rendered an essentially empty root — SSR likely failed`
+        visibleText(page.slice(start)).length > 100,
+        `/${p} rendered an essentially empty root`
       )
     }
   })
 
-  test("does not leak SSR error markers into the output", () => {
+  test("does not leak render error markers into the output", () => {
     for (const p of ["", "about", ...posts.map(x => x.slug)]) {
       const page = readPage(p)
-      for (const marker of ["TypeError:", "ReferenceError:", "Minified React error"]) {
+      for (const marker of ["TypeError:", "ReferenceError:", "Minified React error", "undefined"]) {
         assert.ok(!page.includes(marker), `"${marker}" found in /${p}`)
       }
     }
   })
+})
 
-  test("emits the client runtime bundle", () => {
-    assert.match(readPage(), /<script[^>]+src="\/[^"]*\.js"/, "no client bundle referenced")
+test.describe("build configuration", () => {
+  const build = args =>
+    spawnSync(process.execPath, [path.join(SITE_ROOT, ".cache", "build.cjs"), ...args], {
+      env: { PATH: process.env.PATH },
+      encoding: "utf8",
+    })
+
+  test("fails with a clear message when Craft is not configured", () => {
+    const result = build([])
+    assert.notEqual(result.status, 0, "build succeeded without CRAFT_API_URL")
+    assert.match(result.stderr, /CRAFT_API_URL is not set/)
+  })
+
+  test("refuses to build an empty site and leaves the previous output in place", async () => {
+    // The scheduled deploy syncs with --delete, so an empty folder must never
+    // produce an (empty) public/ that would then be mirrored to the bucket.
+    const { server, env } = await fakeCraft.start()
+    try {
+      const result = await new Promise(resolve => {
+        const child = spawn(process.execPath, [path.join(SITE_ROOT, ".cache", "build.cjs")], {
+          env: { PATH: process.env.PATH, ...env, CRAFT_FOLDER_ID: fakeCraft.EMPTY_FOLDER_ID },
+        })
+        let stderr = ""
+        child.stderr.on("data", chunk => (stderr += chunk))
+        child.on("exit", status => resolve({ status, stderr }))
+      })
+      assert.notEqual(result.status, 0, "build succeeded with no posts")
+      assert.match(result.stderr, /refusing to build an empty site/)
+    } finally {
+      server.close()
+    }
+    assert.ok(fs.existsSync(path.join(PUBLIC_DIR, "index.html")), "the failed build removed public/")
   })
 })
 
 test.describe("deploy configuration", () => {
-  const config = require(path.join(SITE_ROOT, "gatsby-config"))
-
-  test("keeps the S3 plugin configured for the blog bucket", () => {
-    const s3 = config.plugins.find(
-      p => typeof p === "object" && /gatsby-plugin-s3$/.test(p.resolve)
-    )
-    assert.ok(s3, "the S3 deploy plugin is no longer configured")
-    assert.equal(s3.options.bucketName, "blog.gcardona.me")
-    assert.equal(s3.options.region, "us-east-1")
-    // The bucket is fronted by CloudFront; a non-null ACL breaks the deploy.
-    assert.equal(s3.options.acl, null)
+  test("targets the blog bucket", () => {
+    assert.equal(config.s3.bucketName, "blog.gcardona.me")
+    assert.equal(config.s3.region, "us-east-1")
   })
 
-  test("the S3 plugin resolves to an installed package", () => {
-    const s3 = config.plugins.find(
-      p => typeof p === "object" && /gatsby-plugin-s3$/.test(p.resolve)
-    )
-    assert.doesNotThrow(
-      () => require.resolve(s3.resolve, { paths: [SITE_ROOT] }),
-      `${s3.resolve} is configured but not installed`
-    )
+  test("uploads without an ACL", () => {
+    // The bucket is fronted by CloudFront; setting an ACL breaks the deploy.
+    const script = fs.readFileSync(path.join(SITE_ROOT, "scripts", "deploy.js"), "utf8")
+    assert.doesNotMatch(script, /--acl/)
   })
 })
-
-function escapeRe(s) {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-}

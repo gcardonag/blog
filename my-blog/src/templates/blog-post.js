@@ -1,23 +1,23 @@
 import React from "react"
-import { graphql } from "gatsby"
 import Layout from "../components/layout"
 import { css } from "@emotion/react"
+import { Blocks } from "../craft/blocks"
 
-export default ({ data }) => {
-  const post = data.markdownRemark
+export default ({ post }) => {
   return (
     <Layout>
       <div>
-        <h1>{post.frontmatter.title}</h1>
+        <h1>{post.title}</h1>
         <span
             css={css`
             color: #bbb;
             `}
         >
-            {post.frontmatter.date}
+            {post.displayDate}
         </span><br/>
-        Tags: {post.frontmatter.tags.map(tag => (
+        Tags: {post.tags.map(tag => (
             <span
+                key={tag}
                 css={css`
                 color: #bbb;
                 `}
@@ -25,21 +25,10 @@ export default ({ data }) => {
                 {tag}&nbsp;
             </span>
         ))}<br/><br/>
-        <div dangerouslySetInnerHTML={{ __html: post.html }} />
+        <div>
+          <Blocks blocks={post.blocks} />
+        </div>
       </div>
     </Layout>
   )
 }
-
-export const query = graphql`
-  query($slug: String!) {
-    markdownRemark(fields: { slug: { eq: $slug } }) {
-      html
-      frontmatter {
-        title
-        date(formatString: "DD MMMM, YYYY")
-        tags
-      }
-    }
-  }
-`

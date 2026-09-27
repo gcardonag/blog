@@ -19,49 +19,24 @@ jobs:
         run: yarn install --frozen-lockfile
       - name: Build and verify the site
         working-directory: my-blog
+        # Builds against the fixture Craft server in test/, so this needs no
+        # Craft credentials and runs the same on pull requests.
         run: yarn test
       - name: Report known vulnerable dependencies
         working-directory: my-blog
-        # Advisory data changes daily and every remaining finding is a
-        # build-time transitive dependency, so this reports without failing
-        # the build.
+        # Advisory data changes daily, so this reports without failing the
+        # build.
         continue-on-error: true
         run: yarn audit
-  build:
-    name: Build Gatsby Docker Image
-    needs: test
-    # Only the default branch deploys; pushes to other branches and pull
-    # requests stop after the test job above.
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v1
-      - name: Build
-        env:
-          DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
-        run: |
-          docker login -u gcardona -p ${DOCKER_TOKEN}
-          docker pull gcardona/blog-gatsby
-          docker build --file Dockerfile -t gcardona/blog-gatsby .
-          docker push gcardona/blog-gatsby
   deploy_content:
     name: Deploy Content
-    needs: build
-    runs-on: ubuntu-latest
-    container: gcardona/blog-gatsby
-    steps:
-      - uses: actions/checkout@v1
-      - name: Deploy
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID_GATSBY }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_GATSBY }}
-        run: |
-          cd my-blog/
-          yarn install --frozen-lockfile
-          # `yarn test` builds the site and then verifies the output, so what
-          # gets deployed below is exactly what was verified.
-          yarn test
-          yarn deploy -y
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # The same build-from-Craft-and-upload job that runs on a schedule, so a
+    # code change on main is published immediately rather than at the next
+    # scheduled run.
+    uses: ./.github/workflows/publish-content.yaml
+    secrets: inherit
   deploy_site:
     name: Deploy Site
     needs: deploy_content

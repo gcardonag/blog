@@ -3,58 +3,68 @@ const path = require("path")
 
 const SITE_ROOT = path.resolve(__dirname, "..")
 const PUBLIC_DIR = path.join(SITE_ROOT, "public")
-const POSTS_DIR = path.join(SITE_ROOT, "content", "posts")
+const FIXTURES_DIR = path.join(__dirname, "fixtures", "craft")
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
 ]
 
+function readFixture(...segments) {
+  return JSON.parse(fs.readFileSync(path.join(FIXTURES_DIR, ...segments), "utf8"))
+}
+
 /**
- * Minimal front matter reader. Deliberately hand-rolled rather than pulled from
- * a package: these tests exist to verify the build output independently of the
- * dependency tree they are checking, so they should not share parsing code with
- * it.
+ * Reads one fixture document the way a reader of the Craft doc would.
+ * Deliberately hand-rolled rather than shared with src/craft: these tests
+ * verify the build output, so they should not reuse the code under test.
  */
-function parsePost(file) {
-  const raw = fs.readFileSync(path.join(POSTS_DIR, file), "utf8")
-  const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/)
-  if (!match) throw new Error(`${file} has no front matter block`)
-
-  const [, frontMatter, body] = match
+function parsePost(doc) {
+  const root = readFixture("blocks", `${doc.id}.json`)
+  // Metadata is either one "key: value" line per block, or (as the markdown
+  // import left it) one block of "**Key:** value" lines followed by a divider.
   const fields = {}
-  for (const line of frontMatter.split(/\r?\n/)) {
-    const kv = line.match(/^(\w+):\s*(.*)$/)
-    if (kv) fields[kv[1]] = kv[2].trim()
+  const metaLines = []
+  let i = 0
+  for (; i < root.content.length; i++) {
+    const lines = (root.content[i].markdown || "").split("\n")
+    const pairs = lines.map(l => l.replace(/\*\*/g, "").match(/^(title|date|tags|slug|source file):\s*(.*)$/i))
+    if (root.content[i].type !== "text" || pairs.some(p => !p)) break
+    for (const [line, key, value] of pairs) {
+      fields[key.toLowerCase()] = value.trim()
+      metaLines.push(line)
+    }
   }
-
-  const tags = fields.tags
-    ? JSON.parse(fields.tags.replace(/'/g, '"'))
-    : []
+  if (i > 0 && root.content[i] && root.content[i].type === "line") i++
+  const body = root.content.slice(i)
+  const isoTitle = /^\d{4}-\d{2}-\d{2}$/.test(doc.title) ? doc.title : null
+  const date = fields.date || isoTitle || doc.createdAt.slice(0, 10)
 
   return {
-    file,
-    // gatsby-node derives the slug from the file path via createFilePath
-    slug: `/${path.basename(file, ".md")}/`,
-    title: fields.title,
-    date: fields.date,
-    displayDate: formatDate(fields.date),
-    tags,
-    body,
+    file: `${doc.id}.json`,
+    slug: `/${fields.slug || date}/`,
+    title: fields.title || doc.title,
+    date,
+    displayDate: formatDate(date),
+    dateSource: fields.date ? "metadata" : isoTitle ? "title" : "created",
+    tags: fields.tags ? fields.tags.split(",").map(t => t.trim()) : [],
+    metaLines,
+    blocks: body,
+    body: body
+      .filter(b => b.type === "text")
+      .map(b => b.markdown)
+      .join("\n\n"),
   }
 }
 
-/** Mirrors the GraphQL `date(formatString: "DD MMMM, YYYY")` used by the templates. */
+/** Mirrors the "DD MMMM, YYYY" format the site has always used. */
 function formatDate(isoDate) {
   const [year, month, day] = isoDate.split("-").map(Number)
   return `${String(day).padStart(2, "0")} ${MONTHS[month - 1]}, ${year}`
 }
 
 function allPosts() {
-  return fs
-    .readdirSync(POSTS_DIR)
-    .filter(f => f.endsWith(".md"))
-    .map(parsePost)
+  return readFixture("documents.json").items.map(parsePost)
 }
 
 function readPage(...segments) {
@@ -68,7 +78,7 @@ function decodeEntities(s) {
     .replace(/&quot;/g, '"')
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
-    .replace(/&nbsp;|\u00a0/g, " ")
+    .replace(/&nbsp;| /g, " ")
     .replace(/&amp;/g, "&") // last, so "&amp;lt;" does not become "<"
 }
 
@@ -89,6 +99,7 @@ function text(html) {
 function visibleText(html) {
   const stripped = html
     .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/<head[\s\S]*?<\/head>/g, " ")
     .replace(/<style[\s\S]*?<\/style>/g, " ")
     .replace(/<script[\s\S]*?<\/script>/g, " ")
     .replace(/<[^>]+>/g, " ")
@@ -97,16 +108,17 @@ function visibleText(html) {
 
 /**
  * A short run of plain words taken from near the start of a post body, used to
- * assert the prose actually made it into the rendered page. Markdown structure
- * (list markers, headings, code fences, inline links) is skipped so the probe
- * is a contiguous run of words that survives the remark transform intact.
+ * assert the prose actually made it into the rendered page. Markdown syntax
+ * inside Craft blocks (list markers, headings, code spans, inline links) is
+ * skipped so the probe is a contiguous run of words that renders verbatim.
  */
 function prosePhrase(body, wordCount = 5) {
   const cleaned = body
     .replace(/```[\s\S]*?```/g, " ") // fenced code
     .replace(/`[^`]*`/g, " ") // inline code
     .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1") // links -> their text
-    .replace(/^\s*[-*+]\s+/gm, " ") // list markers
+    .replace(/<\/?(callout|caption|highlight|page|pageTitle)\b[^>]*>/g, " ") // Craft tags
+    .replace(/^\s*[-*+]\s+(\[[ xX]\]\s+)?/gm, " ") // list and task markers
     .replace(/^\s*#{1,6}\s+/gm, " ") // headings
     .replace(/[*_>]/g, " ")
 
@@ -125,11 +137,15 @@ function prosePhrase(body, wordCount = 5) {
   throw new Error(`could not find ${wordCount} consecutive plain words in post body`)
 }
 
+function escapeRe(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+}
+
 module.exports = {
   SITE_ROOT,
   PUBLIC_DIR,
-  POSTS_DIR,
   allPosts,
+  escapeRe,
   formatDate,
   prosePhrase,
   readPage,

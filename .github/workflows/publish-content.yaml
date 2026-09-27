@@ -1,0 +1,56 @@
+name: Publish Content
+on:
+  # Posts live in Craft, so publishing one doesn't push to this repo. Rebuild
+  # from Craft on a schedule so new and edited posts go live on their own.
+  # Scheduled runs always use the default branch.
+  schedule:
+    - cron: "17 * * * *" # hourly; off the top of the hour, when GitHub is busiest
+  # Publish right away from the Actions tab.
+  workflow_dispatch:
+  # Also called by the Deploy Site workflow when code lands on main.
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Build from Craft and Deploy to S3
+    # A manual run from another branch must not publish that branch's code.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    # One deploy at a time, so a scheduled run and a push to main never sync
+    # the bucket concurrently. Queued runs wait rather than cancel a deploy
+    # that is partway through its upload.
+    concurrency:
+      group: publish-content
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+          cache-dependency-path: my-blog/yarn.lock
+      - name: Install dependencies
+        working-directory: my-blog
+        run: yarn install --frozen-lockfile
+      - name: Verify the build pipeline
+        working-directory: my-blog
+        # Builds against the fixture Craft server, so a broken renderer fails
+        # here instead of publishing a broken site.
+        run: yarn test
+      - name: Build the site from Craft
+        working-directory: my-blog
+        env:
+          CRAFT_API_URL: ${{ secrets.CRAFT_API_URL }}
+          CRAFT_API_KEY: ${{ secrets.CRAFT_API_KEY }}
+          CRAFT_FOLDER_ID: ${{ secrets.CRAFT_FOLDER_ID }}
+        run: yarn build
+      - name: Deploy to S3
+        working-directory: my-blog
+        # The AWS CLI is preinstalled on GitHub's Ubuntu runners.
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID_GATSBY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_GATSBY }}
+        run: yarn deploy

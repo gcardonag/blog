@@ -1,0 +1,29 @@
+{
+  "id": "doc-creating-this-blog",
+  "type": "page",
+  "textStyle": "page",
+  "markdown": "Creating this blog",
+  "content": [
+    {
+      "id": "blk-0013",
+      "type": "text",
+      "markdown": "date: 2019-10-20"
+    },
+    {
+      "id": "blk-0014",
+      "type": "text",
+      "markdown": "tags: blog, meta"
+    },
+    {
+      "id": "blk-0015",
+      "type": "text",
+      "markdown": "Trials and Tribulations:"
+    },
+    {
+      "id": "blk-0016",
+      "type": "text",
+      "markdown": "- When creating a blog with Gatsby and setting up the gatsby-plugin-s3 tool, make sure that the acl is set to null and also rerun `gatsby-plugin-s3 deploy` (or any command that targets it). It seems that the permissions are baked into the build process somehow. (TODO: How???)",
+      "listStyle": "bullet"
+    }
+  ]
+}
