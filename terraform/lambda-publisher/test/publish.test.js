@@ -203,10 +203,22 @@ test.describe("Craft settings from SSM", () => {
     assert.equal(settings.folderId, "f")
   })
 
-  test("explains how to fix the placeholder Terraform creates", async () => {
+  test("explains how to fix incomplete settings", async () => {
     await assert.rejects(
       lambda.loadCraftSettings(ssm("{}"), "/blog/craft-settings"),
       /needs "apiUrl" and "folderId".*yarn craft:configure/
+    )
+  })
+
+  test("explains how to create the parameter when it doesn't exist", async () => {
+    const missing = {
+      async getParameter() {
+        throw Object.assign(new Error("not found"), { name: "ParameterNotFound" })
+      },
+    }
+    await assert.rejects(
+      lambda.loadCraftSettings(missing, "/blog/craft-settings"),
+      /\/blog\/craft-settings doesn't exist yet; create it with `yarn craft:configure`/
     )
   })
 })

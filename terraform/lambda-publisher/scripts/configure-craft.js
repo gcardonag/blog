@@ -1,6 +1,7 @@
 /**
- * Stores the Craft connection settings where the publisher Lambda reads them:
- * an SSM SecureString parameter created by ../publisher.tf.
+ * Creates or updates the SSM SecureString parameter the publisher Lambda
+ * reads its Craft connection settings from. Terraform only refers to this
+ * parameter (see ../publisher.tf), so that its value never enters state.
  *
  *   set -a; . ./.env; set +a
  *   yarn craft:configure

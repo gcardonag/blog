@@ -3,6 +3,10 @@ on:
   push:
   pull_request:
 
+# Jobs get read-only repository access unless they ask for more.
+permissions:
+  contents: read
+
 jobs:
   test:
     name: Build and Test Site
@@ -38,10 +42,11 @@ jobs:
     # requests stop after the test job above.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    env:
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID_TF }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_TF }}
-      AWS_DEFAULT_REGION: us-east-1
+    permissions:
+      contents: read
+      # Lets the job request a GitHub OIDC token to exchange for AWS
+      # credentials; no long-lived AWS keys are stored in the repository.
+      id-token: write
     defaults:
       run:
         working-directory: terraform
@@ -58,6 +63,14 @@ jobs:
         run: |
           yarn install --frozen-lockfile
           yarn package
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          # Created outside Terraform (see README). Its trust policy only
+          # accepts tokens for pushes to main in gcardonag/blog. The account
+          # ID is kept out of the repository in the AWS_ACCOUNT_ID secret.
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/blog-github-deploy
+          role-session-name: blog-deploy-${{ github.run_id }}
+          aws-region: us-east-1
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "~1.16"

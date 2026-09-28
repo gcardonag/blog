@@ -56,10 +56,20 @@ export function s3Bucket(s3, bucketName) {
  *     "folderId": "..." }
  */
 export async function loadCraftSettings(ssm, parameterName) {
-  const { Parameter } = await ssm.getParameter({ Name: parameterName, WithDecryption: true })
+  let response
+  try {
+    response = await ssm.getParameter({ Name: parameterName, WithDecryption: true })
+  } catch (err) {
+    if (err.name === "ParameterNotFound") {
+      throw new Error(
+        `SSM parameter ${parameterName} doesn't exist yet; create it with \`yarn craft:configure\` in terraform/lambda-publisher`
+      )
+    }
+    throw err
+  }
   let settings
   try {
-    settings = JSON.parse(Parameter.Value)
+    settings = JSON.parse(response.Parameter.Value)
   } catch {
     throw new Error(`SSM parameter ${parameterName} is not valid JSON`)
   }

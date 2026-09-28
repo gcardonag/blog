@@ -13,21 +13,26 @@ locals {
     publisher_name = "blog-publisher"
 }
 
-# Craft connection settings as JSON ({ apiUrl, apiKey, folderId }). Terraform
-# only creates the parameter; the real value is written out of band with
-# `yarn craft:configure` in lambda-publisher/ and never enters Terraform state.
-resource "aws_ssm_parameter" "craft_settings" {
-    name        = "/blog/craft-settings"
-    description = "Craft API connection used by ${local.publisher_name}"
-    type        = "SecureString"
-    value       = "{}"
+data "aws_caller_identity" "current" {}
+data "aws_region" "current" {}
+
+# Craft connection settings: an SSM SecureString holding JSON
+# ({ apiUrl, apiKey, folderId }), created and updated by `yarn craft:configure`
+# in lambda-publisher/. Terraform deliberately doesn't manage the parameter:
+# refreshing a managed aws_ssm_parameter (or reading it through the data
+# source) stores its decrypted value in state. It's only referenced by name.
+locals {
+    craft_settings_parameter     = "/blog/craft-settings"
+    craft_settings_parameter_arn = "arn:aws:ssm:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:parameter${local.craft_settings_parameter}"
+}
+
+# The parameter used to be a managed resource. Drop it from state (and the
+# settings stored with it) without deleting it in AWS.
+removed {
+    from = aws_ssm_parameter.craft_settings
 
     lifecycle {
-        ignore_changes = [value]
-    }
-
-    tags = {
-        Project = "blog"
+        destroy = false
     }
 }
 
@@ -94,7 +99,7 @@ resource "aws_iam_role_policy" "publisher" {
                 Sid      = "ReadCraftSettings"
                 Effect   = "Allow"
                 Action   = ["ssm:GetParameter"]
-                Resource = aws_ssm_parameter.craft_settings.arn
+                Resource = local.craft_settings_parameter_arn
             },
         ]
     })
@@ -115,7 +120,7 @@ resource "aws_lambda_function" "publisher" {
     environment {
         variables = {
             BUCKET_NAME              = data.aws_s3_bucket.content.id
-            CRAFT_SETTINGS_PARAMETER = aws_ssm_parameter.craft_settings.name
+            CRAFT_SETTINGS_PARAMETER = local.craft_settings_parameter
         }
     }
 

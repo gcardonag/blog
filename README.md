@@ -16,7 +16,8 @@ mermaid.js, and only on posts that contain a diagram.
 .github/workflows/deploy-site.yaml   test → package → terraform apply → build and publish
 terraform/
   blog.tf, prereqs.tf                CloudFront, bucket policy, DNS, certificate
-  publisher.tf                       the Lambda, its schedule, IAM, SSM settings, logs
+  publisher.tf                       the Lambda, its schedule, IAM role, logs
+  github-deploy-role/                IAM policies for the role CI deploys with (created with the AWS CLI)
   lambda-publisher/                  the Lambda's code: the full site build
     src/handler.js                   Lambda entry: fetch from Craft → render → sync to S3
     src/site.js, src/html.js         full-site generation
@@ -78,8 +79,9 @@ Both the Lambda and the local preview need the Craft connection:
 | Folder ID | ID of the Craft folder holding the posts (`GET /folders` lists them). |
 
 - **In AWS**, the Lambda reads them from the SSM SecureString parameter
-  `/blog/craft-settings`. Terraform creates it with a placeholder and never
-  tracks its value; `yarn craft:configure` copies your local settings into it.
+  `/blog/craft-settings`, which `yarn craft:configure` creates or updates from
+  your local settings. Terraform only refers to it by name: managing it (or
+  reading it with the data source) would store the decrypted value in state.
 - **Locally**, they come from the environment as `CRAFT_API_URL`,
   `CRAFT_API_KEY` and `CRAFT_FOLDER_ID`, kept in
   `terraform/lambda-publisher/.env` (git-ignored):
@@ -156,30 +158,40 @@ to appear at blog.gcardona.me.
         - S3 Read/Write (state)
     - Run `docker-compose run terraform init` to validate terraform initializes properly
     - Run `docker-compose run terraform plan` to validate TF can plan properly
-- Set up the publisher (once). The Lambda needs its Craft settings before it
-  first runs, so create the parameter on its own, fill it, then deploy:
+- Store the Craft settings for the publisher (before its first run, and again
+  whenever the Craft connection changes):
     ```
-    cd terraform/lambda-publisher && yarn install && yarn package
-    cd .. && terraform init
-    terraform apply -target=aws_ssm_parameter.craft_settings
-    cd lambda-publisher && set -a && . ./.env && set +a && yarn craft:configure
+    cd terraform/lambda-publisher && yarn install
+    set -a && . ./.env && set +a && yarn craft:configure
     ```
-    Run `yarn craft:configure` again whenever the Craft connection changes.
-
-## Terraform State
-The state lives in `s3://gcardona-tf-state/blog`. It was started fresh on AWS
-provider 6.x, adopting the existing resources with import blocks; the
-original Terraform 0.12 state was moved to `blog-0.12-backup` in the same
-bucket.
+- Create the role GitHub Actions deploys with (once). It can only be assumed
+  by pushes to `main` in `gcardonag/blog`, through the account's GitHub OIDC
+  provider (`token.actions.githubusercontent.com`), and its permissions are
+  scoped to this site's resources:
+    The policy files use an `${AWS_ACCOUNT_ID}` placeholder so the account ID
+    stays out of the repository; `render` fills it in:
+    ```
+    cd terraform/github-deploy-role
+    AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+    render() { sed "s/\${AWS_ACCOUNT_ID}/$AWS_ACCOUNT_ID/g" "$1"; }
+    aws iam create-role --role-name blog-github-deploy \
+      --description "Deploys the blog (Terraform + publisher Lambda) from gcardonag/blog main" \
+      --assume-role-policy-document "$(render trust-policy.json)" \
+      --tags Key=Project,Value=blog
+    aws iam put-role-policy --role-name blog-github-deploy \
+      --policy-name blog-deploy --policy-document "$(render permissions-policy.json)"
+    ```
+    Re-run `put-role-policy` after changing `permissions-policy.json`.
+- Add the account ID as the `AWS_ACCOUNT_ID` repository secret (Settings →
+  Secrets and variables → Actions); the deploy workflow builds the role ARN
+  from it.
 
 ## Deploy Flow:
 Prereqs:
-- IAM Perms
-  - Terraform Deploy (S3, CloudFront create)
-    - S3 State Bucket
-  - Publisher (Lambda, IAM role and policy, EventBridge rule, SSM parameter,
-    CloudWatch log group; `lambda:InvokeFunction` for the post-deploy run)
-  - Cache Invalidate
+- The `blog-github-deploy` IAM role and the `AWS_ACCOUNT_ID` repository secret
+  (see Initial Build Steps). CI assumes the role through GitHub's OIDC token,
+  so no AWS keys are stored in the repository.
+- The Craft settings parameter, filled by `yarn craft:configure`.
 
 On push to `main` (`.github/workflows/deploy-site.yaml`):
 - Test (fixture build, packaged Lambda)
@@ -195,5 +207,3 @@ On push to `main` (`.github/workflows/deploy-site.yaml`):
 Track pricing? (AWS tagging)
 Container Scanning
 Lightouse Tests
-Optimizations
-    - https://cloud.google.com/solutions/best-practices-for-building-containers
