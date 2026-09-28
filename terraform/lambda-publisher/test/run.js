@@ -1,6 +1,7 @@
 /**
- * `yarn test`: builds the site against the fixture Craft server, then runs the
- * checks in test/*.test.js over the output in public/.
+ * `yarn test`: builds the site into public/ against the fixture Craft server,
+ * packages the Lambda into dist/, then runs the checks in test/*.test.js
+ * over both.
  */
 const { spawn } = require("child_process")
 const path = require("path")
@@ -26,6 +27,7 @@ async function main() {
   try {
     // Run through yarn so the build is exactly what `yarn build` does.
     code = await run("yarn", ["--silent", "build"], env)
+    if (code === 0) code = await run("yarn", ["--silent", "package"])
   } finally {
     server.close()
   }

@@ -1,18 +1,18 @@
 {
-  "name": "gcardona-blog",
+  "name": "blog-lambda-publisher",
   "private": true,
-  "description": "Static blog built from posts stored in Craft",
+  "description": "Builds the blog from Craft and publishes it to S3, as a Lambda (plus a local preview)",
   "version": "0.1.0",
   "license": "MIT",
   "scripts": {
-    "build": "esbuild src/build.js --bundle --platform=node --format=cjs --loader:.js=jsx --jsx=automatic --jsx-import-source=@emotion/react --log-level=warning --outfile=.cache/build.cjs && node .cache/build.cjs",
-    "deploy": "node scripts/deploy.js",
-    "develop": "yarn build && yarn serve",
-    "format": "prettier --write \"**/*.{js,jsx,json,md}\"",
-    "start": "yarn develop",
+    "build": "node scripts/build.js",
+    "preview": "yarn build && yarn serve",
     "serve": "node scripts/serve.js",
+    "package": "node scripts/package.js",
     "test": "node test/run.js",
-    "test:only": "node --test test/*.test.js"
+    "test:only": "node --test test/*.test.js",
+    "craft:configure": "node scripts/configure-craft.js",
+    "format": "prettier --write \"**/*.{js,jsx,json,md}\""
   },
   "dependencies": {
     "@emotion/cache": "^11.14.0",

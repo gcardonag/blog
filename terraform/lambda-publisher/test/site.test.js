@@ -383,7 +383,7 @@ test.describe("build configuration", () => {
   test("fails with a clear message when Craft is not configured", () => {
     const result = build([])
     assert.notEqual(result.status, 0, "build succeeded without CRAFT_API_URL")
-    assert.match(result.stderr, /CRAFT_API_URL is not set/)
+    assert.match(result.stderr, /Craft API URL is not set \(CRAFT_API_URL locally/)
   })
 
   test("refuses to build an empty site and leaves the previous output in place", async () => {
@@ -405,18 +405,5 @@ test.describe("build configuration", () => {
       server.close()
     }
     assert.ok(fs.existsSync(path.join(PUBLIC_DIR, "index.html")), "the failed build removed public/")
-  })
-})
-
-test.describe("deploy configuration", () => {
-  test("targets the blog bucket", () => {
-    assert.equal(config.s3.bucketName, "blog.gcardona.me")
-    assert.equal(config.s3.region, "us-east-1")
-  })
-
-  test("uploads without an ACL", () => {
-    // The bucket is fronted by CloudFront; setting an ACL breaks the deploy.
-    const script = fs.readFileSync(path.join(SITE_ROOT, "scripts", "deploy.js"), "utf8")
-    assert.doesNotMatch(script, /--acl/)
   })
 })

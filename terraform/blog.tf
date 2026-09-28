@@ -3,9 +3,7 @@ data "aws_s3_bucket" "content" {
 }
 
 resource "aws_s3_bucket_public_access_block" "content" {
-    bucket = "${data.aws_s3_bucket.content.id}"
-
-    provider = "aws" # https://github.com/terraform-providers/terraform-provider-aws/issues/8560
+    bucket = data.aws_s3_bucket.content.id
 }
 
 resource "aws_s3_bucket_policy" "content" {

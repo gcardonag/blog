@@ -5,7 +5,8 @@
 export function createCraftClient({ apiUrl, apiKey }) {
   if (!apiUrl) {
     throw new Error(
-      "CRAFT_API_URL is not set. Create an API connection in Craft's Imagine tab and export its URL."
+      "The Craft API URL is not set (CRAFT_API_URL locally, apiUrl in the Lambda's settings). " +
+        "Create an API connection in Craft's Imagine tab to get one."
     )
   }
   const base = apiUrl.replace(/\/+$/, "")

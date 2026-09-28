@@ -22,7 +22,9 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
 const EXCERPT_LENGTH = 140
 
 export async function loadPosts(client, folderId) {
-  if (!folderId) throw new Error("CRAFT_FOLDER_ID is not set.")
+  if (!folderId) {
+    throw new Error("The Craft folder ID is not set (CRAFT_FOLDER_ID locally, folderId in the Lambda's settings).")
+  }
 
   const documents = await client.listDocuments(folderId)
   // The deploy mirrors public/ into the bucket and deletes what's missing, so
