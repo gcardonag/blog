@@ -13,6 +13,7 @@ mermaid.js, and only on posts that contain a diagram.
 
 ## Repository layout
 ```
+.github/dependabot.yml               weekly dependency update checks
 .github/workflows/deploy-site.yaml   test → package → terraform apply → build and publish
 terraform/
   blog.tf, prereqs.tf                CloudFront, bucket policy, DNS, certificate
