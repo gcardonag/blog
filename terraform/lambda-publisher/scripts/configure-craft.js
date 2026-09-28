@@ -4,7 +4,7 @@
  * parameter (see ../publisher.tf), so that its value never enters state.
  *
  *   set -a; . ./.env; set +a
- *   yarn craft:configure
+ *   npm run craft:configure
  *
  * Takes CRAFT_API_URL, CRAFT_API_KEY (optional) and CRAFT_FOLDER_ID from the
  * environment and writes them with the AWS CLI, using the current AWS

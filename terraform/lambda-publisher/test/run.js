@@ -1,5 +1,5 @@
 /**
- * `yarn test`: builds the site into public/ against the fixture Craft server,
+ * `npm test`: builds the site into public/ against the fixture Craft server,
  * packages the Lambda into dist/, then runs the checks in test/*.test.js
  * over both.
  */
@@ -25,9 +25,9 @@ async function main() {
   const { server, env } = await fakeCraft.start()
   let code
   try {
-    // Run through yarn so the build is exactly what `yarn build` does.
-    code = await run("yarn", ["--silent", "build"], env)
-    if (code === 0) code = await run("yarn", ["--silent", "package"])
+    // Run through npm so the build is exactly what `npm run build` does.
+    code = await run("npm", ["run", "--silent", "build"], env)
+    if (code === 0) code = await run("npm", ["run", "--silent", "package"])
   } finally {
     server.close()
   }

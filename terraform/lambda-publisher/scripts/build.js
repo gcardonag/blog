@@ -1,5 +1,5 @@
 /**
- * `yarn build`: bundles src/build.js into .cache/build.cjs with esbuild, then
+ * `npm run build`: bundles src/build.js into .cache/build.cjs with esbuild, then
  * runs it to write the site to public/ for local preview.
  */
 const esbuild = require("esbuild")

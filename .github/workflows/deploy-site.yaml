@@ -20,21 +20,21 @@ jobs:
         with:
           # Same major version as the Lambda runtime (nodejs24.x).
           node-version-file: terraform/lambda-publisher/.nvmrc
-          cache: yarn
-          cache-dependency-path: terraform/lambda-publisher/yarn.lock
+          cache: npm
+          cache-dependency-path: terraform/lambda-publisher/package-lock.json
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: npm ci
       - name: Build, package and verify
         # Builds the site and packages the Lambda against the fixture Craft
         # server in test/, then checks the pages and runs the packaged Lambda
         # against an in-memory bucket. Needs no Craft or AWS credentials, so
         # it runs the same on pull requests.
-        run: yarn test
+        run: npm test
       - name: Report known vulnerable dependencies
         # Advisory data changes daily, so this reports without failing the
         # build.
         continue-on-error: true
-        run: yarn audit
+        run: npm audit
   deploy:
     name: Deploy Infrastructure and Publish
     needs: test
@@ -56,13 +56,13 @@ jobs:
         with:
           # Same major version as the Lambda runtime (nodejs24.x).
           node-version-file: terraform/lambda-publisher/.nvmrc
-          cache: yarn
-          cache-dependency-path: terraform/lambda-publisher/yarn.lock
+          cache: npm
+          cache-dependency-path: terraform/lambda-publisher/package-lock.json
       - name: Package the Lambda
         working-directory: terraform/lambda-publisher
         run: |
-          yarn install --frozen-lockfile
-          yarn package
+          npm ci
+          npm run package
       - uses: aws-actions/configure-aws-credentials@v6
         with:
           # Created outside Terraform (see README). Its trust policy only

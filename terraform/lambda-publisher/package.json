@@ -6,7 +6,7 @@
   "license": "MIT",
   "scripts": {
     "build": "node scripts/build.js",
-    "preview": "yarn build && yarn serve",
+    "preview": "npm run build && npm run serve",
     "serve": "node scripts/serve.js",
     "package": "node scripts/package.js",
     "test": "node test/run.js",

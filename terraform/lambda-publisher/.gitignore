@@ -2,8 +2,6 @@
 logs
 *.log
 npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
 
 # Runtime data
 pids
@@ -61,13 +59,7 @@ public
 # Mac files
 .DS_Store
 
-# Yarn
-yarn-error.log
-.pnp/
-.pnp.js
-# Yarn Integrity file
-.yarn-integrity
 
 
-# Lambda package for Terraform (yarn package)
+# Lambda package for Terraform (npm run package)
 dist/
