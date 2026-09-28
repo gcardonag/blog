@@ -95,7 +95,7 @@ Both the Lambda and the local preview need the Craft connection:
 The site title and URL are set in `terraform/lambda-publisher/site.config.js`.
 
 ## Local Development
-Requires Node 22, matching the Lambda's `nodejs22.x` runtime (`nvm use`
+Requires Node 24, matching the Lambda's `nodejs24.x` runtime (`nvm use`
 picks it up from `.nvmrc`), and Yarn 1. All commands run in
 `terraform/lambda-publisher/`:
 

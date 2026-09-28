@@ -21,7 +21,7 @@ async function main() {
     absWorkingDir: ROOT,
     entryPoints: ["src/handler.js"],
     outfile: path.join(OUT_DIR, "index.js"),
-    target: "node22", // the Lambda runtime; keep in step with .nvmrc
+    target: "node24", // the Lambda runtime; keep in step with .nvmrc
     external: ["@aws-sdk/*"],
   })
   fs.cpSync(path.join(ROOT, "static"), path.join(OUT_DIR, "static"), { recursive: true })
