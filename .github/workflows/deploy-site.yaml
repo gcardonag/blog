@@ -15,8 +15,8 @@ jobs:
       run:
         working-directory: terraform/lambda-publisher
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           # Same major version as the Lambda runtime (nodejs22.x).
           node-version-file: terraform/lambda-publisher/.nvmrc
@@ -51,8 +51,8 @@ jobs:
       run:
         working-directory: terraform
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           # Same major version as the Lambda runtime (nodejs22.x).
           node-version-file: terraform/lambda-publisher/.nvmrc
@@ -63,7 +63,7 @@ jobs:
         run: |
           yarn install --frozen-lockfile
           yarn package
-      - uses: aws-actions/configure-aws-credentials@v4
+      - uses: aws-actions/configure-aws-credentials@v6
         with:
           # Created outside Terraform (see README). Its trust policy only
           # accepts tokens for pushes to main in gcardonag/blog. The account
@@ -71,7 +71,7 @@ jobs:
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/blog-github-deploy
           role-session-name: blog-deploy-${{ github.run_id }}
           aws-region: us-east-1
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: "~1.16"
           # Plain stdout, so `terraform output -raw` can be captured below.
