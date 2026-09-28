@@ -1,0 +1,58 @@
+# Dependabot security updates are turned on in the repository settings, so a
+# pull request opens as soon as an advisory affects a dependency. The weekly
+# checks below also keep dependencies current, so a security fix is a small
+# bump rather than a jump across several releases.
+version: 2
+updates:
+  # The site builder and Lambda publisher (Yarn 1 lockfile).
+  - package-ecosystem: npm
+    directory: /terraform/lambda-publisher
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      # One pull request for every security fix found in the same run.
+      security:
+        applies-to: security-updates
+        patterns: ["*"]
+      # Minor and patch bumps land together; major bumps get their own pull
+      # request since they can break the build.
+      minor-and-patch:
+        applies-to: version-updates
+        patterns: ["*"]
+        update-types: [minor, patch]
+    commit-message:
+      prefix: deps
+
+  # Actions used by .github/workflows/deploy-site.yaml.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci
+
+  # AWS and other providers pinned in terraform/.terraform.lock.hcl.
+  - package-ecosystem: terraform
+    directory: /terraform
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      providers:
+        patterns: ["*"]
+    commit-message:
+      prefix: infra
+
+  # The Terraform image used for local runs.
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: infra
