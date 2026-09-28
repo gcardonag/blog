@@ -1,0 +1,50 @@
+{
+  "id": "doc-azure-ad-aws-iam",
+  "type": "page",
+  "textStyle": "page",
+  "markdown": "Connecting Azure AD and AWS IAM",
+  "content": [
+    {
+      "id": "blk-0017",
+      "type": "text",
+      "markdown": "date: 2020-04-04"
+    },
+    {
+      "id": "blk-0018",
+      "type": "text",
+      "markdown": "tags: azure, active directory, iam, aws"
+    },
+    {
+      "id": "blk-0019",
+      "type": "text",
+      "markdown": "After being asked about the AD<->IAM SAML flow, I realized I was pretty lost on how to explain exactly how it works. I thought I got the general idea: trust established via the shared metadata and the SAML flow, but I didn't understand how IAM roles magically mapped to AD groups, as that task was always done before my involvement in any AWS work."
+    },
+    {
+      "id": "blk-0020",
+      "type": "text",
+      "markdown": "You can go about it two ways:"
+    },
+    {
+      "id": "blk-0021",
+      "type": "text",
+      "markdown": "AD <- AWS (pull)\nhttps://docs.microsoft.com/en-us/azure/active-directory/saas-apps/amazon-web-service-tutorial"
+    },
+    {
+      "id": "blk-0022",
+      "type": "code",
+      "language": "plaintext",
+      "rawCode": "sequenceDiagram\n    participant AD\n    participant User\n    participant IAM\n    AD->IAM: Sync existing roles\n    Note right of AD: Non-MS User<br />(Didn't work in<br />Demo)\n    User->>AD: Login\n    AD->>User: Share assigned roles\n    User->>IAM: Login",
+      "markdown": "```\nsequenceDiagram\n...\n```"
+    },
+    {
+      "id": "blk-0023",
+      "type": "text",
+      "markdown": "AWS -> AD (push)\nhttps://aws.amazon.com/blogs/security/how-to-automate-saml-federation-to-multiple-aws-accounts-from-microsoft-azure-active-directory/"
+    },
+    {
+      "id": "blk-0024",
+      "type": "text",
+      "markdown": "AWS SSO: https://aws.amazon.com/blogs/aws/the-next-evolution-in-aws-single-sign-on/"
+    }
+  ]
+}

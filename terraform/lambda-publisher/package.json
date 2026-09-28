@@ -1,0 +1,38 @@
+{
+  "name": "blog-lambda-publisher",
+  "private": true,
+  "description": "Builds the blog from Craft and publishes it to S3, as a Lambda (plus a local preview)",
+  "version": "0.1.0",
+  "license": "MIT",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "preview": "yarn build && yarn serve",
+    "serve": "node scripts/serve.js",
+    "package": "node scripts/package.js",
+    "test": "node test/run.js",
+    "test:only": "node --test test/*.test.js",
+    "craft:configure": "node scripts/configure-craft.js",
+    "format": "prettier --write \"**/*.{js,jsx,json,md}\""
+  },
+  "dependencies": {
+    "@emotion/cache": "^11.14.0",
+    "@emotion/react": "^11.14.0",
+    "@emotion/server": "^11.11.0",
+    "marked": "^18.0.14",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "typography": "^0.16.19",
+    "typography-theme-kirkham": "^0.16.19"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "prettier": "^3.6.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gcardonag/blog"
+  },
+  "bugs": {
+    "url": "https://github.com/gcardonag/blog/issues"
+  }
+}

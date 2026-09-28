@@ -14,29 +14,22 @@ data "aws_route53_zone" "zone" {
 }
 
 resource "aws_route53_record" "cert_validation" {
+    # One record per name on the certificate. domain_validation_options is a
+    # set (not a list) from AWS provider 3.x on, so it is keyed by domain.
+    for_each = {
+        for dvo in aws_acm_certificate.cert.domain_validation_options : dvo.domain_name => dvo
+    }
+
     allow_overwrite = true
 
-    name    = "${aws_acm_certificate.cert.domain_validation_options.0.resource_record_name}"
-    type    = "${aws_acm_certificate.cert.domain_validation_options.0.resource_record_type}"
-    zone_id = "${data.aws_route53_zone.zone.id}"
-    records = ["${aws_acm_certificate.cert.domain_validation_options.0.resource_record_value}"]
+    name    = each.value.resource_record_name
+    type    = each.value.resource_record_type
+    zone_id = data.aws_route53_zone.zone.id
+    records = [each.value.resource_record_value]
     ttl     = 60
 }
 
-resource "aws_route53_record" "cert_validation_alt1" {
-    allow_overwrite = true
-
-  name    = "${aws_acm_certificate.cert.domain_validation_options.1.resource_record_name}"
-  type    = "${aws_acm_certificate.cert.domain_validation_options.1.resource_record_type}"
-  zone_id = "${data.aws_route53_zone.zone.id}"
-  records = ["${aws_acm_certificate.cert.domain_validation_options.1.resource_record_value}"]
-  ttl     = 60
-}
-
 resource "aws_acm_certificate_validation" "cert" {
-  certificate_arn         = "${aws_acm_certificate.cert.arn}"
-  validation_record_fqdns = [
-      "${aws_route53_record.cert_validation.fqdn}",
-      "${aws_route53_record.cert_validation_alt1.fqdn}"
-      ]
+  certificate_arn         = aws_acm_certificate.cert.arn
+  validation_record_fqdns = [for record in aws_route53_record.cert_validation : record.fqdn]
 }

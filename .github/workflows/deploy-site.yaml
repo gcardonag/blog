@@ -3,77 +3,92 @@ on:
   push:
   pull_request:
 
+# Jobs get read-only repository access unless they ask for more.
+permissions:
+  contents: read
+
 jobs:
   test:
     name: Build and Test Site
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform/lambda-publisher
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # Same major version as the Lambda runtime (nodejs22.x).
+          node-version-file: terraform/lambda-publisher/.nvmrc
           cache: yarn
-          cache-dependency-path: my-blog/yarn.lock
+          cache-dependency-path: terraform/lambda-publisher/yarn.lock
       - name: Install dependencies
-        working-directory: my-blog
         run: yarn install --frozen-lockfile
-      - name: Build and verify the site
-        working-directory: my-blog
+      - name: Build, package and verify
+        # Builds the site and packages the Lambda against the fixture Craft
+        # server in test/, then checks the pages and runs the packaged Lambda
+        # against an in-memory bucket. Needs no Craft or AWS credentials, so
+        # it runs the same on pull requests.
         run: yarn test
       - name: Report known vulnerable dependencies
-        working-directory: my-blog
-        # Advisory data changes daily and every remaining finding is a
-        # build-time transitive dependency, so this reports without failing
-        # the build.
+        # Advisory data changes daily, so this reports without failing the
+        # build.
         continue-on-error: true
         run: yarn audit
-  build:
-    name: Build Gatsby Docker Image
+  deploy:
+    name: Deploy Infrastructure and Publish
     needs: test
     # Only the default branch deploys; pushes to other branches and pull
     # requests stop after the test job above.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Lets the job request a GitHub OIDC token to exchange for AWS
+      # credentials; no long-lived AWS keys are stored in the repository.
+      id-token: write
+    defaults:
+      run:
+        working-directory: terraform
     steps:
-      - uses: actions/checkout@v1
-      - name: Build
-        env:
-          DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          # Same major version as the Lambda runtime (nodejs22.x).
+          node-version-file: terraform/lambda-publisher/.nvmrc
+          cache: yarn
+          cache-dependency-path: terraform/lambda-publisher/yarn.lock
+      - name: Package the Lambda
+        working-directory: terraform/lambda-publisher
         run: |
-          docker login -u gcardona -p ${DOCKER_TOKEN}
-          docker pull gcardona/blog-gatsby
-          docker build --file Dockerfile -t gcardona/blog-gatsby .
-          docker push gcardona/blog-gatsby
-  deploy_content:
-    name: Deploy Content
-    needs: build
-    runs-on: ubuntu-latest
-    container: gcardona/blog-gatsby
-    steps:
-      - uses: actions/checkout@v1
-      - name: Deploy
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID_GATSBY }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_GATSBY }}
-        run: |
-          cd my-blog/
           yarn install --frozen-lockfile
-          # `yarn test` builds the site and then verifies the output, so what
-          # gets deployed below is exactly what was verified.
-          yarn test
-          yarn deploy -y
-  deploy_site:
-    name: Deploy Site
-    needs: deploy_content
-    runs-on: ubuntu-latest
-    container: hashicorp/terraform:light
-    steps:
-      - uses: actions/checkout@v1
-      - name: Deploy
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID_TF }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_TF }}
+          yarn package
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          # Created outside Terraform (see README). Its trust policy only
+          # accepts tokens for pushes to main in gcardonag/blog. The account
+          # ID is kept out of the repository in the AWS_ACCOUNT_ID secret.
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/blog-github-deploy
+          role-session-name: blog-deploy-${{ github.run_id }}
+          aws-region: us-east-1
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~1.16"
+          # Plain stdout, so `terraform output -raw` can be captured below.
+          terraform_wrapper: false
+      - name: Apply Terraform
         run: |
-          cd terraform/
           terraform init -input=false
           terraform apply -input=false -auto-approve
+      - name: Build and publish the site
+        # Every deploy from main builds the site from the latest Craft content
+        # with the code just deployed; the EventBridge schedule keeps doing so
+        # between deploys. Fails the deploy if the build or upload fails.
+        run: |
+          function_error=$(aws lambda invoke \
+            --function-name "$(terraform output -raw publisher_function_name)" \
+            --cli-read-timeout 180 \
+            --query FunctionError --output text \
+            response.json)
+          cat response.json; echo
+          test "$function_error" = "None"

@@ -1,0 +1,148 @@
+{
+  "id": "doc-formatting-reference",
+  "type": "page",
+  "textStyle": "page",
+  "markdown": "Formatting Reference",
+  "content": [
+    {
+      "id": "blk-0025",
+      "type": "text",
+      "markdown": "date: 2021-01-01"
+    },
+    {
+      "id": "blk-0026",
+      "type": "text",
+      "markdown": "tags: craft, meta"
+    },
+    {
+      "id": "blk-0027",
+      "type": "text",
+      "markdown": "slug: formatting-reference"
+    },
+    {
+      "id": "blk-0028",
+      "type": "text",
+      "markdown": "This post exercises every block type the site knows how to render from Craft."
+    },
+    {
+      "id": "blk-0029",
+      "type": "text",
+      "markdown": "## Inline formatting",
+      "textStyle": "h2"
+    },
+    {
+      "id": "blk-0030",
+      "type": "text",
+      "markdown": "Some **bold**, some *italic*, some `inline code`, a [link](https://www.craft.do/) and <highlight color=\"gradient-yellow\">a highlight</highlight>."
+    },
+    {
+      "id": "blk-0031",
+      "type": "text",
+      "markdown": "### Lists",
+      "textStyle": "h3"
+    },
+    {
+      "id": "blk-0032",
+      "type": "text",
+      "markdown": "- First bullet",
+      "listStyle": "bullet"
+    },
+    {
+      "id": "blk-0033",
+      "type": "text",
+      "markdown": "- Nested bullet",
+      "listStyle": "bullet",
+      "indentationLevel": 1
+    },
+    {
+      "id": "blk-0034",
+      "type": "text",
+      "markdown": "- Second bullet",
+      "listStyle": "bullet"
+    },
+    {
+      "id": "blk-0035",
+      "type": "text",
+      "markdown": "1. First step",
+      "listStyle": "numbered"
+    },
+    {
+      "id": "blk-0036",
+      "type": "text",
+      "markdown": "2. Second step",
+      "listStyle": "numbered"
+    },
+    {
+      "id": "blk-0037",
+      "type": "text",
+      "markdown": "- [x] Finished task",
+      "listStyle": "task",
+      "taskInfo": {
+        "state": "done"
+      }
+    },
+    {
+      "id": "blk-0038",
+      "type": "text",
+      "markdown": "- [ ] Open task",
+      "listStyle": "task",
+      "taskInfo": {
+        "state": "todo"
+      }
+    },
+    {
+      "id": "blk-0039",
+      "type": "text",
+      "markdown": "<callout>A callout becomes a blockquote.</callout>",
+      "decorations": [
+        "callout"
+      ]
+    },
+    {
+      "id": "blk-0040",
+      "type": "text",
+      "markdown": "<caption>A caption line.</caption>",
+      "textStyle": "caption"
+    },
+    {
+      "id": "blk-0041",
+      "type": "line",
+      "lineStyle": "regular",
+      "markdown": "---"
+    },
+    {
+      "id": "blk-0042",
+      "type": "code",
+      "language": "javascript",
+      "rawCode": "const answer = 6 * 7",
+      "markdown": "```javascript\nconst answer = 6 * 7\n```"
+    },
+    {
+      "id": "blk-0043",
+      "type": "image",
+      "url": "https://example.com/diagram.png",
+      "altText": "A diagram",
+      "markdown": "![A diagram](https://example.com/diagram.png)"
+    },
+    {
+      "id": "blk-0044",
+      "type": "richUrl",
+      "url": "https://www.craft.do/",
+      "title": "Craft",
+      "markdown": "[Craft](https://www.craft.do/)"
+    },
+    {
+      "id": "blk-0045",
+      "type": "page",
+      "textStyle": "card",
+      "markdown": "A nested card",
+      "content": [
+        {
+          "id": "blk-0046",
+          "type": "text",
+          "markdown": "Content inside a card."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "id": "doc-passing-promises",
+  "type": "page",
+  "textStyle": "page",
+  "markdown": "Passing Promises in JS",
+  "content": [
+    {
+      "id": "blk-0011",
+      "type": "text",
+      "markdown": "tags: javascript, promise"
+    },
+    {
+      "id": "blk-0012",
+      "type": "text",
+      "markdown": "When using promises in a JavaScript function that is to be called by another function, make sure the parent function returns the promise! Also, make sure that any objects intended to be returned via a promise live within the scope of the promise."
+    }
+  ]
+}

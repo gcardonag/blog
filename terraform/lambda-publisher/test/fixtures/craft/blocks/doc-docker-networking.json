@@ -1,0 +1,34 @@
+{
+  "id": "doc-docker-networking",
+  "type": "page",
+  "textStyle": "page",
+  "markdown": "2019-10-06",
+  "content": [
+    {
+      "id": "doc-docker-networking-meta",
+      "type": "text",
+      "markdown": "**Title:** Docker Networking\n**Tags:** docker, windows\n**Source file:** 2019-10-06.md"
+    },
+    {
+      "id": "doc-docker-networking-divider",
+      "type": "line",
+      "lineStyle": "regular",
+      "markdown": "*****"
+    },
+    {
+      "id": "blk-0003",
+      "type": "text",
+      "markdown": "Fun fact I learned about while doing some dev work with Docker where I needed a DB container and app container to talk to each other:"
+    },
+    {
+      "id": "blk-0004",
+      "type": "text",
+      "markdown": "Setup: Docker on Windows"
+    },
+    {
+      "id": "blk-0005",
+      "type": "text",
+      "markdown": "If you want container-name hostname resolution between containers, make sure to run with docker-compose up and not run"
+    }
+  ]
+}

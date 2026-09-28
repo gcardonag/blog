@@ -1,0 +1,34 @@
+{
+  "id": "doc-athena-jdbc",
+  "type": "page",
+  "textStyle": "page",
+  "markdown": "2019-10-08",
+  "content": [
+    {
+      "id": "doc-athena-jdbc-meta",
+      "type": "text",
+      "markdown": "**Title:** Athena's JDBC Driver\n**Tags:** athena, jdbc, aws\n**Source file:** 2019-10-08.md"
+    },
+    {
+      "id": "doc-athena-jdbc-divider",
+      "type": "line",
+      "lineStyle": "regular",
+      "markdown": "*****"
+    },
+    {
+      "id": "blk-0008",
+      "type": "text",
+      "markdown": "When using Athena's JDBC driver in a Java project with other AWS libraries, you may face some conflicts with\nlibraries in the com.amazonaws.auth package. If you do, use a tool like 7zip to open the JDBC driver JAR and\nremove that package. That should remove the conflict and force the JDBC driver to use the imported core aws lib instead."
+    },
+    {
+      "id": "blk-0009",
+      "type": "text",
+      "markdown": ""
+    },
+    {
+      "id": "blk-0010",
+      "type": "text",
+      "markdown": "I did try shading the package via Maven but that did not work."
+    }
+  ]
+}

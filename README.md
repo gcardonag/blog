@@ -1,33 +1,154 @@
 # blog
 
-Built using https://www.gatsbyjs.org/tutorial/using-a-theme/
+A static blog whose posts are written in [Craft](https://www.craft.do/).
+A Lambda function builds the whole site from the latest Craft content (via
+the [Craft API](https://connect.craft.do/api-docs/space)) and publishes it to
+the S3 bucket behind CloudFront, on a schedule and after every deploy. This
+repository holds that Lambda and the Terraform that deploys it and the rest
+of the site's infrastructure.
 
-Dev Environment:
+Pages are React components rendered to static HTML, styled with Emotion and
+typography.js (Kirkham theme). No client-side JavaScript is shipped except
+mermaid.js, and only on posts that contain a diagram.
+
+## Repository layout
 ```
-docker compose run --service-ports dev
-cd my-blog/
-gatsby develop -H 0.0.0.0
+.github/workflows/deploy-site.yaml   test → package → terraform apply → build and publish
+terraform/
+  blog.tf, prereqs.tf                CloudFront, bucket policy, DNS, certificate
+  publisher.tf                       the Lambda, its schedule, IAM role, logs
+  github-deploy-role/                IAM policies for the role CI deploys with (created with the AWS CLI)
+  lambda-publisher/                  the Lambda's code: the full site build
+    src/handler.js                   Lambda entry: fetch from Craft → render → sync to S3
+    src/site.js, src/html.js         full-site generation
+    src/craft/                       Craft API client, posts, block rendering
+    src/components/ pages/ templates/ utils/   the site's React components and styles
+    src/publish/                     S3 sync and SSM settings
+    src/build.js                     local preview build into public/
+    static/                          files published as-is (favicon)
+    scripts/                         package (for Terraform), build, serve, craft:configure
+    test/                            fake Craft API, fixtures, page and publishing checks
 ```
 
-## Tests
+## Writing posts in Craft
+Each document in the blog's Craft folder is one post. Metadata at the very
+top of the document acts as front matter and is left out of the page. It can
+be one line per block:
+
 ```
-cd my-blog/
-yarn test        # builds the site, then verifies the generated output
-yarn test:only   # re-runs the checks against an existing public/ build
+date: 2020-04-04
+tags: azure, active directory, iam, aws
+slug: my-post
 ```
 
-The suite in `my-blog/test/` asserts against the built site in `public/`, so it
-covers the whole pipeline: markdown sourcing, the remark transform, mermaid
-diagrams, Emotion's CSS extraction, typography, React SSR, and the S3 deploy
-configuration. It is written with the built-in `node:test` runner and pulls in
-no dependencies of its own. CI runs it on every push and pull request, and the
-deploy job ships the same build the tests verified.
+or, as the markdown import produced, a single block of bold labels followed
+by a divider (the divider is dropped too):
 
-## Dependency Security
-Transitive dependencies whose parents pin them below a published security fix
-are forced up via `resolutions` in `my-blog/package.json`; see the
-`comment:resolutions` field there for the exceptions and why they stand.
-Re-check with `cd my-blog/ && yarn audit`.
+```
+**Title:** Connecting Azure AD and AWS IAM
+**Tags:** azure, active directory, iam, aws
+**Source file:** 2020-04-04.md
+───────────────
+```
+
+- `title` defaults to the document's title.
+- `date` defaults to the document's title if that is a date (e.g. a document
+  named `2020-04-04`), otherwise to its creation date.
+- `slug` defaults to the date, so the post is served at `/2020-04-04/`. Two
+  posts on the same day need a `slug` line, or the build fails.
+- `source file` is accepted and ignored.
+- A line break inside a block is rendered as a line break, as Craft shows it.
+- Headings, bulleted/numbered/task/toggle lists (including nested ones),
+  callouts, captions, code, images, dividers, links and cards are rendered.
+  Drawings, whiteboards and collections are skipped with a build warning.
+- Diagrams: a code block with the `mermaid` language, or any code block that
+  starts with a mermaid keyword (`sequenceDiagram`, `graph`, `flowchart`,
+  ...), is drawn as a mermaid diagram.
+
+`terraform/lambda-publisher/test/fixtures/craft/` has the original posts in
+Craft's JSON format, plus a formatting reference post that uses every
+supported block type.
+
+## Configuration
+Both the Lambda and the local preview need the Craft connection:
+
+| Setting | Value |
+| --- | --- |
+| API URL | The URL of an API connection created in Craft's Imagine tab, e.g. `https://connect.craft.do/links/<secret>/api/v1`. The URL itself grants access, so keep it secret. |
+| API key | Optional. Only needed if the connection has an API key. |
+| Folder ID | ID of the Craft folder holding the posts (`GET /folders` lists them). |
+
+- **In AWS**, the Lambda reads them from the SSM SecureString parameter
+  `/blog/craft-settings`, which `yarn craft:configure` creates or updates from
+  your local settings. Terraform only refers to it by name: managing it (or
+  reading it with the data source) would store the decrypted value in state.
+- **Locally**, they come from the environment as `CRAFT_API_URL`,
+  `CRAFT_API_KEY` and `CRAFT_FOLDER_ID`, kept in
+  `terraform/lambda-publisher/.env` (git-ignored):
+  ```
+  CRAFT_API_URL=https://connect.craft.do/links/<secret>/api/v1
+  CRAFT_API_KEY=<if the connection has one>
+  CRAFT_FOLDER_ID=<folder id>
+  ```
+
+The site title and URL are set in `terraform/lambda-publisher/site.config.js`.
+
+## Local Development
+Requires Node 22, matching the Lambda's `nodejs22.x` runtime (`nvm use`
+picks it up from `.nvmrc`), and Yarn 1. All commands run in
+`terraform/lambda-publisher/`:
+
+```
+yarn install
+set -a; . ./.env; set +a
+yarn preview     # builds from Craft into public/ (as the Lambda would) and serves it on :9000
+yarn package     # bundles the Lambda into dist/ for Terraform
+yarn test        # builds and packages against fixture data, then verifies both
+yarn test:only   # re-runs the checks against an existing fixture build
+```
+
+`yarn build` and the Lambda run the same site generator (`src/site.js`); the
+preview just writes to `public/` instead of the bucket.
+
+`yarn test` needs no Craft or AWS credentials. It starts a local stand-in for
+the Craft API (`test/fake-craft.js`) that serves the fixtures, then:
+- builds the site against it and checks the pages in `public/`: post
+  generation and URLs, the rendering of each block type, mermaid diagrams,
+  Emotion's CSS extraction and typography;
+- packages the Lambda and runs the bundle against an in-memory bucket and
+  stand-in S3/SSM clients: uploads, skipped unchanged files, deletions, and
+  that a failed Craft fetch leaves the bucket untouched.
+
+It uses the built-in `node:test` runner and adds no dependencies. CI runs it
+on every push and pull request.
+
+## Publishing
+The live site is built and published by the **blog-publisher** Lambda
+(`terraform/lambda-publisher/`, deployed by `terraform/publisher.tf`). Each
+run pulls the posts from Craft, builds the whole site in memory, and syncs it
+into the `blog.gcardona.me` bucket: changed files are uploaded (pages first,
+the index last), then objects the site no longer has are deleted. Unchanged
+files are skipped.
+
+It runs:
+
+- **hourly**, on an EventBridge schedule. Change the `publish_schedule`
+  Terraform variable (e.g. `rate(30 minutes)` or `cron(0 14 ? * MON *)`) to
+  adjust it.
+- **after every deploy** from `main`, with the code just deployed.
+- **on demand**:
+  ```
+  aws lambda invoke --function-name blog-publisher --region us-east-1 response.json
+  ```
+
+If Craft can't be reached, rejects the credentials, or the folder has no
+posts, the run fails before touching the bucket, so a bad fetch can't empty
+the site. Failed scheduled runs are retried once; logs are in the
+`/aws/lambda/blog-publisher` log group (kept 30 days).
+
+CloudFront caches pages for at least an hour (`min_ttl` in
+`terraform/blog.tf`), so a newly published post can take up to an hour more
+to appear at blog.gcardona.me.
 
 ## Initial Build Steps
 - How was blog initialized?
@@ -37,33 +158,52 @@ Re-check with `cd my-blog/ && yarn audit`.
         - S3 Read/Write (state)
     - Run `docker-compose run terraform init` to validate terraform initializes properly
     - Run `docker-compose run terraform plan` to validate TF can plan properly
-- Set up initial Docker image locally (so that you can pull/push for future updates without pull errors)
-    - docker login
-    - docker build -t tag/name .
-    - docker push tag/name
+- Store the Craft settings for the publisher (before its first run, and again
+  whenever the Craft connection changes):
+    ```
+    cd terraform/lambda-publisher && yarn install
+    set -a && . ./.env && set +a && yarn craft:configure
+    ```
+- Create the role GitHub Actions deploys with (once). It can only be assumed
+  by pushes to `main` in `gcardonag/blog`, through the account's GitHub OIDC
+  provider (`token.actions.githubusercontent.com`), and its permissions are
+  scoped to this site's resources:
+    The policy files use an `${AWS_ACCOUNT_ID}` placeholder so the account ID
+    stays out of the repository; `render` fills it in:
+    ```
+    cd terraform/github-deploy-role
+    AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+    render() { sed "s/\${AWS_ACCOUNT_ID}/$AWS_ACCOUNT_ID/g" "$1"; }
+    aws iam create-role --role-name blog-github-deploy \
+      --description "Deploys the blog (Terraform + publisher Lambda) from gcardonag/blog main" \
+      --assume-role-policy-document "$(render trust-policy.json)" \
+      --tags Key=Project,Value=blog
+    aws iam put-role-policy --role-name blog-github-deploy \
+      --policy-name blog-deploy --policy-document "$(render permissions-policy.json)"
+    ```
+    Re-run `put-role-policy` after changing `permissions-policy.json`.
+- Add the account ID as the `AWS_ACCOUNT_ID` repository secret (Settings →
+  Secrets and variables → Actions); the deploy workflow builds the role ARN
+  from it.
 
 ## Deploy Flow:
 Prereqs:
-- IAM Perms
-  - Terraform Deploy (S3, CloudFront create)
-    - S3 State Bucket
-  - Gatsby Deploy (S3 Write)
-  - Cache Invalidate
+- The `blog-github-deploy` IAM role and the `AWS_ACCOUNT_ID` repository secret
+  (see Initial Build Steps). CI assumes the role through GitHub's OIDC token,
+  so no AWS keys are stored in the repository.
+- The Craft settings parameter, filled by `yarn craft:configure`.
 
-Build Docker Containers
-- Gatsby
-
-Gatsby Deploy
-- S3
-
-Terraform Deploy
-- CloudFront
-- Route 53
-- ACM
+On push to `main` (`.github/workflows/deploy-site.yaml`):
+- Test (fixture build, packaged Lambda)
+- Package the Lambda
+- Terraform Deploy
+    - CloudFront
+    - Route 53
+    - ACM
+    - Publisher Lambda and its schedule
+- Build and publish the site (invoke the Lambda)
 
 ## Future Ideas
 Track pricing? (AWS tagging)
 Container Scanning
 Lightouse Tests
-Optimizations
-    - https://cloud.google.com/solutions/best-practices-for-building-containers
