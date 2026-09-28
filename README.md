@@ -80,7 +80,7 @@ Both the Lambda and the local preview need the Craft connection:
 | Folder ID | ID of the Craft folder holding the posts (`GET /folders` lists them). |
 
 - **In AWS**, the Lambda reads them from the SSM SecureString parameter
-  `/blog/craft-settings`, which `yarn craft:configure` creates or updates from
+  `/blog/craft-settings`, which `npm run craft:configure` creates or updates from
   your local settings. Terraform only refers to it by name: managing it (or
   reading it with the data source) would store the decrypted value in state.
 - **Locally**, they come from the environment as `CRAFT_API_URL`,
@@ -96,22 +96,22 @@ The site title and URL are set in `terraform/lambda-publisher/site.config.js`.
 
 ## Local Development
 Requires Node 24, matching the Lambda's `nodejs24.x` runtime (`nvm use`
-picks it up from `.nvmrc`), and Yarn 1. All commands run in
+picks it up from `.nvmrc`) and the npm that comes with it. All commands run in
 `terraform/lambda-publisher/`:
 
 ```
-yarn install
+npm ci
 set -a; . ./.env; set +a
-yarn preview     # builds from Craft into public/ (as the Lambda would) and serves it on :9000
-yarn package     # bundles the Lambda into dist/ for Terraform
-yarn test        # builds and packages against fixture data, then verifies both
-yarn test:only   # re-runs the checks against an existing fixture build
+npm run preview   # builds from Craft into public/ (as the Lambda would) and serves it on :9000
+npm run package   # bundles the Lambda into dist/ for Terraform
+npm test          # builds and packages against fixture data, then verifies both
+npm run test:only # re-runs the checks against an existing fixture build
 ```
 
-`yarn build` and the Lambda run the same site generator (`src/site.js`); the
+`npm run build` and the Lambda run the same site generator (`src/site.js`); the
 preview just writes to `public/` instead of the bucket.
 
-`yarn test` needs no Craft or AWS credentials. It starts a local stand-in for
+`npm test` needs no Craft or AWS credentials. It starts a local stand-in for
 the Craft API (`test/fake-craft.js`) that serves the fixtures, then:
 - builds the site against it and checks the pages in `public/`: post
   generation and URLs, the rendering of each block type, mermaid diagrams,
@@ -162,8 +162,8 @@ to appear at blog.gcardona.me.
 - Store the Craft settings for the publisher (before its first run, and again
   whenever the Craft connection changes):
     ```
-    cd terraform/lambda-publisher && yarn install
-    set -a && . ./.env && set +a && yarn craft:configure
+    cd terraform/lambda-publisher && npm ci
+    set -a && . ./.env && set +a && npm run craft:configure
     ```
 - Create the role GitHub Actions deploys with (once). It can only be assumed
   by pushes to `main` in `gcardonag/blog`, through the account's GitHub OIDC
@@ -192,7 +192,7 @@ Prereqs:
 - The `blog-github-deploy` IAM role and the `AWS_ACCOUNT_ID` repository secret
   (see Initial Build Steps). CI assumes the role through GitHub's OIDC token,
   so no AWS keys are stored in the repository.
-- The Craft settings parameter, filled by `yarn craft:configure`.
+- The Craft settings parameter, filled by `npm run craft:configure`.
 
 On push to `main` (`.github/workflows/deploy-site.yaml`):
 - Test (fixture build, packaged Lambda)

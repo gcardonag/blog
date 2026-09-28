@@ -1,5 +1,5 @@
 /**
- * Checks the Lambda as packaged (dist/index.js, built by `yarn package`),
+ * Checks the Lambda as packaged (dist/index.js, built by `npm run package`),
  * with the fixture Craft server standing in for Craft and in-memory stand-ins
  * for S3 and SSM.
  */
@@ -206,7 +206,7 @@ test.describe("Craft settings from SSM", () => {
   test("explains how to fix incomplete settings", async () => {
     await assert.rejects(
       lambda.loadCraftSettings(ssm("{}"), "/blog/craft-settings"),
-      /needs "apiUrl" and "folderId".*yarn craft:configure/
+      /needs "apiUrl" and "folderId".*npm run craft:configure/
     )
   })
 
@@ -218,7 +218,7 @@ test.describe("Craft settings from SSM", () => {
     }
     await assert.rejects(
       lambda.loadCraftSettings(missing, "/blog/craft-settings"),
-      /\/blog\/craft-settings doesn't exist yet; create it with `yarn craft:configure`/
+      /\/blog\/craft-settings doesn't exist yet; create it with `npm run craft:configure`/
     )
   })
 })

@@ -62,7 +62,7 @@ export async function loadCraftSettings(ssm, parameterName) {
   } catch (err) {
     if (err.name === "ParameterNotFound") {
       throw new Error(
-        `SSM parameter ${parameterName} doesn't exist yet; create it with \`yarn craft:configure\` in terraform/lambda-publisher`
+        `SSM parameter ${parameterName} doesn't exist yet; create it with \`npm run craft:configure\` in terraform/lambda-publisher`
       )
     }
     throw err
@@ -75,7 +75,7 @@ export async function loadCraftSettings(ssm, parameterName) {
   }
   if (!settings.apiUrl || !settings.folderId) {
     throw new Error(
-      `SSM parameter ${parameterName} needs "apiUrl" and "folderId"; set it with \`yarn craft:configure\` in terraform/lambda-publisher`
+      `SSM parameter ${parameterName} needs "apiUrl" and "folderId"; set it with \`npm run craft:configure\` in terraform/lambda-publisher`
     )
   }
   return settings

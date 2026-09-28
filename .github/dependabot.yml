@@ -4,7 +4,7 @@
 # bump rather than a jump across several releases.
 version: 2
 updates:
-  # The site builder and Lambda publisher (Yarn 1 lockfile).
+  # The site builder and Lambda publisher (package-lock.json).
   - package-ecosystem: npm
     directory: /terraform/lambda-publisher
     schedule:

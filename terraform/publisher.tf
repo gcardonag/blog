@@ -1,7 +1,7 @@
 # Publisher: a Lambda that builds the whole site from the latest Craft
 # content and syncs it into the content bucket, on a schedule and after each
 # deploy. The code is in lambda-publisher/, packaged into lambda-publisher/dist
-# by `yarn package` there, which must run before plan/apply.
+# by `npm run package` there, which must run before plan/apply.
 
 variable "publish_schedule" {
     description = "How often the publisher rebuilds the site from Craft (EventBridge schedule expression)."
@@ -17,7 +17,7 @@ data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
 # Craft connection settings: an SSM SecureString holding JSON
-# ({ apiUrl, apiKey, folderId }), created and updated by `yarn craft:configure`
+# ({ apiUrl, apiKey, folderId }), created and updated by `npm run craft:configure`
 # in lambda-publisher/. Terraform deliberately doesn't manage the parameter:
 # refreshing a managed aws_ssm_parameter (or reading it through the data
 # source) stores its decrypted value in state. It's only referenced by name.

@@ -1,6 +1,6 @@
 /**
  * Serves public/ locally, resolving /path/ to /path/index.html the way the
- * S3 website endpoint does. Usage: yarn serve [port]
+ * S3 website endpoint does. Usage: npm run serve -- [port]
  */
 const http = require("http")
 const fs = require("fs")

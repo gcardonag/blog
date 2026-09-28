@@ -1,7 +1,7 @@
 /**
  * End-to-end checks over the generated site.
  *
- * `yarn test` builds the site against a local stand-in for the Craft API
+ * `npm test` builds the site against a local stand-in for the Craft API
  * (test/fake-craft.js, serving test/fixtures/craft) and then runs these
  * against `public/`. That exercises the whole pipeline: fetching documents
  * and blocks over HTTP, turning Craft blocks into HTML, mermaid diagrams,
@@ -39,7 +39,7 @@ const referencePage = () => readPage(reference.slug)
 test("the build produced a public directory", () => {
   assert.ok(
     fs.existsSync(PUBLIC_DIR),
-    `${PUBLIC_DIR} is missing — run \`yarn test\`, which builds against the fixtures first`
+    `${PUBLIC_DIR} is missing — run \`npm run test\`, which builds against the fixtures first`
   )
 })
 

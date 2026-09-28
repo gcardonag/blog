@@ -1,5 +1,5 @@
 /**
- * `yarn package`: bundles the Lambda (src/handler.js and everything it
+ * `npm run package`: bundles the Lambda (src/handler.js and everything it
  * imports) into dist/, with the static files beside it. ../publisher.tf zips
  * dist/ and deploys it, so this must run before terraform plan/apply.
  *

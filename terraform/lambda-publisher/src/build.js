@@ -1,6 +1,6 @@
 /**
  * Local preview build: fetches posts from Craft and writes the site to
- * public/ (`yarn build`, `yarn preview`). It generates exactly what the
+ * public/ (`npm run build`, `npm run preview`). It generates exactly what the
  * Lambda (src/handler.js) publishes to the live site.
  */
 import fs from "fs"
