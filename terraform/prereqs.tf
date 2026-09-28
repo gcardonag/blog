@@ -29,18 +29,6 @@ resource "aws_route53_record" "cert_validation" {
     ttl     = 60
 }
 
-# The two records used to be separate resources; keep them rather than
-# recreating them under their new addresses.
-# moved {
-#     from = aws_route53_record.cert_validation
-#     to   = aws_route53_record.cert_validation["blog.gcardona.me"]
-# }
-
-# moved {
-#     from = aws_route53_record.cert_validation_alt1
-#     to   = aws_route53_record.cert_validation["www.blog.gcardona.me"]
-# }
-
 resource "aws_acm_certificate_validation" "cert" {
   certificate_arn         = aws_acm_certificate.cert.arn
   validation_record_fqdns = [for record in aws_route53_record.cert_validation : record.fqdn]

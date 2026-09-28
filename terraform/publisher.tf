@@ -104,7 +104,7 @@ resource "aws_lambda_function" "publisher" {
     function_name    = local.publisher_name
     description      = "Rebuilds the blog from Craft and syncs it into ${data.aws_s3_bucket.content.id}"
     role             = aws_iam_role.publisher.arn
-    runtime          = "nodejs22.x"
+    runtime          = "nodejs22.x" # keep in step with lambda-publisher/.nvmrc
     architectures    = ["arm64"]
     handler          = "index.handler"
     filename         = data.archive_file.publisher.output_path
