@@ -17,7 +17,6 @@ mermaid.js, and only on posts that contain a diagram.
 terraform/
   blog.tf, prereqs.tf                CloudFront, bucket policy, DNS, certificate
   publisher.tf                       the Lambda, its schedule, IAM, SSM settings, logs
-  imports.tf                         one-time adoption of existing resources (see below)
   lambda-publisher/                  the Lambda's code: the full site build
     src/handler.js                   Lambda entry: fetch from Craft → render → sync to S3
     src/site.js, src/html.js         full-site generation
@@ -167,35 +166,11 @@ to appear at blog.gcardona.me.
     ```
     Run `yarn craft:configure` again whenever the Craft connection changes.
 
-## Moving to the fresh Terraform state (one time)
-The original state was written by Terraform 0.12 with AWS provider 2.x,
-which current Terraform can't load. Rather than upgrading it, the config
-starts a fresh state in the same `blog` key and adopts the existing
-resources with the import blocks in `terraform/imports.tf`.
-
-1. Move the old state aside (keep it, in case you need to look anything up):
-    ```
-    aws s3 mv s3://gcardona-tf-state/blog s3://gcardona-tf-state/blog-0.12-backup
-    ```
-2. Start over locally, so init doesn't reuse the old backend settings:
-    ```
-    cd terraform/lambda-publisher && yarn install && yarn package
-    cd .. && rm -rf .terraform
-    terraform init
-    terraform plan
-    ```
-    The plan should import 7 resources (bucket policy, public access block,
-    CloudFront distribution, the site's DNS record, the certificate and its
-    two validation records) and create only the certificate validation step
-    and the publisher resources. If it wants to replace or destroy anything,
-    stop and find out why before applying.
-3. Create and fill the Craft settings parameter, then apply the rest:
-    ```
-    terraform apply -target=aws_ssm_parameter.craft_settings
-    cd lambda-publisher && set -a && . ./.env && set +a && yarn craft:configure
-    cd .. && terraform apply
-    ```
-4. Delete `terraform/imports.tf`; its blocks do nothing once imported.
+## Terraform State
+The state lives in `s3://gcardona-tf-state/blog`. It was started fresh on AWS
+provider 6.x, adopting the existing resources with import blocks; the
+original Terraform 0.12 state was moved to `blog-0.12-backup` in the same
+bucket.
 
 ## Deploy Flow:
 Prereqs:
