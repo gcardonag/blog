@@ -18,15 +18,15 @@
     "@emotion/cache": "^11.14.0",
     "@emotion/react": "^11.14.0",
     "@emotion/server": "^11.11.0",
-    "marked": "^18.1.0",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0",
+    "marked": "^18.1.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "typography": "^0.16.19",
     "typography-theme-kirkham": "^0.16.19"
   },
   "devDependencies": {
     "esbuild": "^0.28.2",
-    "prettier": "^3.6.2"
+    "prettier": "^3.9.10"
   },
   "repository": {
     "type": "git",
