@@ -1,7 +1,7 @@
 ---
 services:
   terraform:
-    image: hashicorp/terraform:1.16
+    image: hashicorp/terraform:1.17
     volumes:
       - ./terraform:/root
     working_dir: /root
